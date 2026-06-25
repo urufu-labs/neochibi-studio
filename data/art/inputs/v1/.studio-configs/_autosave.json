@@ -1,0 +1,150 @@
+{
+  "id": "_autosave",
+  "name": "Autosave",
+  "rootDir": "neochibi-studio\\data\\art\\inputs\\v1",
+  "layerOrder": [
+    "background",
+    "tail",
+    "body",
+    "hair",
+    "shirt",
+    "coat",
+    "face",
+    "beard"
+  ],
+  "selectedTraits": {},
+  "effects": [
+    {
+      "id": "saturation",
+      "enabled": false,
+      "options": {
+        "factor": 1
+      }
+    },
+    {
+      "id": "brightness-contrast",
+      "enabled": false,
+      "options": {
+        "brightness": 0,
+        "contrast": 0
+      }
+    },
+    {
+      "id": "hue",
+      "enabled": false,
+      "options": {
+        "degrees": 0
+      }
+    },
+    {
+      "id": "invert",
+      "enabled": false,
+      "options": {}
+    },
+    {
+      "id": "duotone",
+      "enabled": false,
+      "options": {
+        "shadowHue": 260,
+        "highlightHue": 35,
+        "saturation": 0.7
+      }
+    },
+    {
+      "id": "halftone",
+      "enabled": false,
+      "options": {
+        "cellSize": 8,
+        "ink": 0.95
+      }
+    },
+    {
+      "id": "pixel-mosaic",
+      "enabled": false,
+      "options": {
+        "blockSize": 6
+      }
+    },
+    {
+      "id": "dither",
+      "enabled": false,
+      "options": {
+        "levels": 4
+      }
+    },
+    {
+      "id": "posterize",
+      "enabled": false,
+      "options": {
+        "levels": 5
+      }
+    },
+    {
+      "id": "chromatic",
+      "enabled": false,
+      "options": {
+        "shift": 6
+      }
+    },
+    {
+      "id": "glitch",
+      "enabled": false,
+      "options": {
+        "shift": 14,
+        "sliceCount": 10,
+        "chromaShift": 4,
+        "seed": 1337
+      }
+    },
+    {
+      "id": "vhs",
+      "enabled": false,
+      "options": {
+        "intensity": 0.5
+      }
+    },
+    {
+      "id": "scanlines",
+      "enabled": false,
+      "options": {
+        "gap": 3,
+        "alpha": 0.25
+      }
+    },
+    {
+      "id": "noise",
+      "enabled": false,
+      "options": {
+        "intensity": 12,
+        "chromatic": 0.4
+      }
+    },
+    {
+      "id": "crt",
+      "enabled": false,
+      "options": {
+        "scanlineAlpha": 0.18,
+        "vignette": 0.4,
+        "gap": 3
+      }
+    }
+  ],
+  "templates": {
+    "templateA": {
+      "alwaysLayerIds": [],
+      "neverLayerIds": [],
+      "excludedTraitPaths": [],
+      "layerRules": []
+    },
+    "templateB": {
+      "alwaysLayerIds": [],
+      "neverLayerIds": [],
+      "excludedTraitPaths": [],
+      "layerRules": []
+    },
+    "templateAWeight": 50,
+    "traitPairs": [],
+    "layerExclusions": []
+  },
+  "updatedAt": "2026-06-25T18:06:37.156Z"
+}
