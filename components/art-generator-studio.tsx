@@ -1,24 +1,21 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { buildNewTraitFileName, normalizePendingNewTrait } from '@/lib/art-generator/paste-traits';
 import { createSavedConfig, hydrateSavedConfig, type StoredGeneratorConfigFile } from '@/lib/art-generator/presets';
-import { fetchDefaultRoot, writeStoredRootDir } from '@/lib/art-generator/root';
 import {
-  DEFAULT_TEMPLATES,
+  DEFAULT_RULES,
   getTemplateLayerRule,
   getLayerTemplateState,
-  pickTemplateKind,
   pickWeightedTrait,
   rollFromTemplate,
   setLayerTemplateState,
   setTemplateLayerRule,
   simulateCollection,
   templateCapacity,
-  type CollectionTemplates,
+  type CollectionRules,
   type SimulationResult,
-  type TemplateKind,
 } from '@/lib/art-generator/rules';
 import { DEFAULT_TRAIT_WEIGHT, type TraitWeights } from '@/lib/art-generator/weights';
 import {
@@ -30,9 +27,15 @@ import {
   type PreviewEffect,
 } from '@/lib/art-generator/canvas-filters';
 import type { TraitAsset, TraitLayer, TraitLibrary } from '@/lib/art-generator/types';
+import { getAssetStore, useAssetStoreVersion } from '@/lib/storage/asset-store';
 import { PreviewCanvas } from '@/components/preview-canvas';
 import { GalleryTile } from '@/components/gallery-tile';
 import { TraitPicker } from '@/components/trait-picker';
+import { UploadDropzone } from '@/components/upload-dropzone';
+import { CollectionGenerator } from '@/components/collection-generator';
+import { CollectionBrowser } from '@/components/collection-browser';
+import { IpfsPushPanel } from '@/components/ipfs-push-panel';
+import { StudioSteps } from '@/components/studio-steps';
 
 interface LoadableState {
   loading: boolean;
@@ -91,15 +94,7 @@ function buildPreviewSelectionFromGallerySeed(
 }
 
 function buildAssetUrl(rootDir: string, asset: TraitAsset): string {
-  const params = new URLSearchParams({
-    root: rootDir,
-    asset: asset.relativePath,
-  });
-  if (asset.version) {
-    params.set('v', String(asset.version));
-  }
-
-  return `/api/art-generator/asset?${params.toString()}`;
+  return getAssetStore().buildAssetUrl(rootDir, asset);
 }
 
 function buildNextSelection(
@@ -162,11 +157,6 @@ function readFileAsDataUrl(file: Blob): Promise<string> {
   });
 }
 
-const TEMPLATE_LABELS: Record<TemplateKind, string> = {
-  templateA: 'Template A',
-  templateB: 'Template B',
-};
-
 const PRESET_EFFECTS_BY_ID: Record<string, PreviewEffect[]> = Object.fromEntries(
   PREVIEW_EFFECT_PRESETS.map((preset) => [preset.id, applyPreviewEffectPreset(DEFAULT_PREVIEW_EFFECTS, preset)]),
 );
@@ -187,6 +177,11 @@ export function ArtGeneratorStudio() {
   const replaceFileInputRef = useRef<HTMLInputElement | null>(null);
 
   const [rootDirInput, setRootDirInput] = useState('');
+  const [projectName, setProjectName] = useState<string>('Untitled Collection');
+  const [renamingProject, setRenamingProject] = useState(false);
+  const [projectNameDraft, setProjectNameDraft] = useState<string>('');
+  const [outputCount, setOutputCount] = useState(0);
+  const storeVersion = useAssetStoreVersion();
   const [library, setLibrary] = useState<TraitLibrary | null>(null);
   const [layerOrder, setLayerOrder] = useState<string[]>([]);
   const [selectedTraits, setSelectedTraits] = useState<Record<string, string>>({});
@@ -197,10 +192,8 @@ export function ArtGeneratorStudio() {
   const [exportName, setExportName] = useState('');
   const [effects, setEffects] = useState<PreviewEffect[]>(() => [...DEFAULT_PREVIEW_EFFECTS]);
 
-  const [templates, setTemplates] = useState<CollectionTemplates>(() => ({
-    templateA: { ...DEFAULT_TEMPLATES.templateA, excludedTraitPaths: [], layerRules: [] },
-    templateB: { ...DEFAULT_TEMPLATES.templateB, excludedTraitPaths: [], layerRules: [] },
-    templateAWeight: DEFAULT_TEMPLATES.templateAWeight,
+  const [rules, setRules] = useState<CollectionRules>(() => ({
+    template: { ...DEFAULT_RULES.template, excludedTraitPaths: [], layerRules: [] },
     traitPairs: [],
     layerExclusions: [],
   }));
@@ -224,6 +217,13 @@ export function ArtGeneratorStudio() {
   const [lastPastedImageId, setLastPastedImageId] = useState<string | null>(null);
 
   const [pastedImages, setPastedImages] = useState<PastedImage[]>([]);
+  interface PendingDelete {
+    kind: 'layer' | 'trait';
+    label: string;
+    impactSummary: string[];
+    confirm: () => Promise<void>;
+  }
+  const [pendingDelete, setPendingDelete] = useState<PendingDelete | null>(null);
 
   const [pairDraftA, setPairDraftA] = useState('');
   const [pairDraftB, setPairDraftB] = useState('');
@@ -231,7 +231,7 @@ export function ArtGeneratorStudio() {
 
   type StudioTab = 'library' | 'templates' | null;
   const [activeTab, setActiveTab] = useState<StudioTab>(null);
-  const [gallerySeeds, setGallerySeeds] = useState<Array<{ kind: TemplateKind; selection: Record<string, string>; presetId: string | null }>>([]);
+  const [gallerySeeds, setGallerySeeds] = useState<Array<{ selection: Record<string, string>; presetId: string | null }>>([]);
   const [galleryTileCount, setGalleryTileCount] = useState(16);
   const [galleryEffectsEnabled, setGalleryEffectsEnabled] = useState(true);
   const [activeGalleryTileIndex, setActiveGalleryTileIndex] = useState<number | null>(null);
@@ -257,10 +257,14 @@ export function ArtGeneratorStudio() {
   }, []);
 
   useEffect(() => {
+    void getAssetStore().listOutputs().then((outputs) => setOutputCount(outputs.length));
+  }, [storeVersion]);
+
+  useEffect(() => {
     if (!library) return;
     rerollGallery(galleryTileCount);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [library, galleryTileCount, templates, traitWeights]);
+  }, [library, galleryTileCount, rules, traitWeights]);
 
   useEffect(() => {
     function handlePaste(event: ClipboardEvent) {
@@ -328,10 +332,9 @@ export function ArtGeneratorStudio() {
   }, [layerMap, layerOrder]);
 
   const capacities = useMemo(() => {
-    const templateA = templateCapacity(orderedLayers, templates.templateA, traitWeights);
-    const templateB = templateCapacity(orderedLayers, templates.templateB, traitWeights);
-    return { templateA, templateB, total: templateA + templateB };
-  }, [orderedLayers, templates, traitWeights]);
+    const total = templateCapacity(orderedLayers, rules.template, traitWeights);
+    return { total };
+  }, [orderedLayers, rules, traitWeights]);
 
   const previewLayers = orderedLayers
     .map((layer) => {
@@ -385,48 +388,22 @@ export function ArtGeneratorStudio() {
     }
   }
 
-  async function fetchLibrary(rootDir: string): Promise<TraitLibrary> {
-    const response = await fetch(`/api/art-generator/library?${new URLSearchParams({ root: rootDir }).toString()}`);
-    const payload = (await response.json()) as TraitLibrary | { error: string };
-
-    if (!response.ok || 'error' in payload) {
-      throw new Error('error' in payload ? payload.error : 'Failed to load trait assets.');
-    }
-
-    return payload;
-  }
-
-  async function fetchStoredConfigs(rootDir: string): Promise<StoredGeneratorConfigFile[]> {
-    const response = await fetch(`/api/art-generator/configs?${new URLSearchParams({ root: rootDir }).toString()}`);
-    const payload = (await response.json()) as { configs?: StoredGeneratorConfigFile[]; error?: string };
-    if (!response.ok || payload.error || !payload.configs) {
-      throw new Error(payload.error || 'Failed to load saved configs.');
-    }
-
-    return payload.configs;
-  }
-
-  async function fetchTraitWeights(rootDir: string): Promise<TraitWeights> {
-    const response = await fetch(`/api/art-generator/weights?${new URLSearchParams({ root: rootDir }).toString()}`);
-    const payload = (await response.json()) as { weights?: TraitWeights; error?: string };
-    if (!response.ok || payload.error || !payload.weights) {
-      return {};
-    }
-    return payload.weights;
-  }
-
-  async function loadCanonicalRoot(rootDir?: string) {
-    const nextRoot = rootDir ?? (await fetchDefaultRoot());
+  const loadCanonicalRoot = useCallback(async () => {
+    const store = getAssetStore();
+    const project = await store.ensureDefaultProject();
+    const nextRoot = `opfs:project/${project.id}`;
     setRootDirInput(nextRoot);
-    writeStoredRootDir(nextRoot);
+    setProjectName(project.name || 'Untitled Collection');
 
     const [nextLibrary, storedConfigs, weights] = await Promise.all([
-      fetchLibrary(nextRoot),
-      fetchStoredConfigs(nextRoot),
-      fetchTraitWeights(nextRoot),
+      store.getLibrary(),
+      store.listConfigs(),
+      store.getWeights(),
     ]);
 
-    const autosave = storedConfigs.find((config) => config.id === AUTOSAVE_ID);
+    const autosave = storedConfigs.find((config) => config.id === AUTOSAVE_ID) as
+      | StoredGeneratorConfigFile
+      | undefined;
     const hydrated = autosave ? hydrateSavedConfig({ ...autosave, rootDir: nextRoot }, nextLibrary) : null;
     const hydratedSelection = hydrated?.selectedTraits ?? selectedTraits;
 
@@ -436,14 +413,15 @@ export function ArtGeneratorStudio() {
     }
     if (hydrated) {
       setEffects(normalizePreviewEffects(hydrated.effects));
-      setTemplates(hydrated.templates);
+      setRules(hydrated.rules);
     }
     setTraitWeights(weights);
     traitWeightsHydratedRef.current = true;
     setState({ loading: false, error: null });
     hydratedRef.current = true;
     return nextRoot;
-  }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     if (!hydratedRef.current || !library || !rootDirInput.trim()) {
@@ -462,17 +440,17 @@ export function ArtGeneratorStudio() {
           layerOrder,
           selectedTraits,
           effects,
-          templates,
+          rules,
         });
-        const response = await fetch('/api/art-generator/configs', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ rootDir: rootDirInput.trim(), config }),
+        await getAssetStore().saveConfig({
+          id: config.id,
+          name: config.name,
+          layerOrder: config.layerOrder,
+          selectedTraits: config.selectedTraits,
+          effects: config.effects,
+          rules: config.rules,
+          rawJson: JSON.stringify(config, null, 2),
         });
-        const payload = (await response.json()) as { configs?: StoredGeneratorConfigFile[]; error?: string };
-        if (!response.ok || payload.error || !payload.configs) {
-          throw new Error(payload.error || 'Autosave failed.');
-        }
         setAutosaveStatus('saved');
       } catch {
         setAutosaveStatus('error');
@@ -484,17 +462,13 @@ export function ArtGeneratorStudio() {
         clearTimeout(autosaveTimerRef.current);
       }
     };
-  }, [layerOrder, selectedTraits, effects, templates, library, rootDirInput]);
+  }, [layerOrder, selectedTraits, effects, rules, library, rootDirInput]);
 
   useEffect(() => {
     if (!traitWeightsHydratedRef.current || !rootDirInput.trim()) return;
     if (traitWeightsTimerRef.current) clearTimeout(traitWeightsTimerRef.current);
     traitWeightsTimerRef.current = setTimeout(() => {
-      void fetch('/api/art-generator/weights', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ rootDir: rootDirInput.trim(), weights: traitWeights }),
-      });
+      void getAssetStore().setWeights(traitWeights);
     }, 700);
     return () => {
       if (traitWeightsTimerRef.current) clearTimeout(traitWeightsTimerRef.current);
@@ -502,57 +476,50 @@ export function ArtGeneratorStudio() {
   }, [traitWeights, rootDirInput]);
 
 
-  function updateTemplateLayerState(kind: TemplateKind, layerId: string, state: 'always' | 'never' | 'optional') {
-    setTemplates((current) => ({
+  function updateTemplateLayerState(layerId: string, state: 'always' | 'never' | 'optional') {
+    setRules((current) => ({
       ...current,
-      [kind]: setLayerTemplateState(current[kind], layerId, state),
+      template: setLayerTemplateState(current.template, layerId, state),
     }));
   }
 
-  function updateTemplateLayerChance(kind: TemplateKind, layerId: string, chancePercent: number) {
-    setTemplates((current) => ({
+  function updateTemplateLayerChance(layerId: string, chancePercent: number) {
+    setRules((current) => ({
       ...current,
-      [kind]: setTemplateLayerRule(current[kind], layerId, { chancePercent }),
+      template: setTemplateLayerRule(current.template, layerId, { chancePercent }),
     }));
   }
 
-  function updateTemplateLayerSkips(kind: TemplateKind, layerId: string, excludeLayerIds: string[]) {
-    setTemplates((current) => ({
+  function updateTemplateLayerSkips(layerId: string, excludeLayerIds: string[]) {
+    setRules((current) => ({
       ...current,
-      [kind]: setTemplateLayerRule(current[kind], layerId, { excludeLayerIds }),
+      template: setTemplateLayerRule(current.template, layerId, { excludeLayerIds }),
     }));
   }
 
-  function updateTemplateAWeight(weight: number) {
-    const clamped = Math.max(0, Math.min(100, Math.round(weight)));
-    setTemplates((current) => ({ ...current, templateAWeight: clamped }));
-  }
-
-  function toggleTraitInTemplate(kind: TemplateKind, traitPath: string, included: boolean) {
-    setTemplates((current) => {
-      const tpl = current[kind];
-      const set = new Set(tpl.excludedTraitPaths);
+  function toggleTraitInTemplate(traitPath: string, included: boolean) {
+    setRules((current) => {
+      const set = new Set(current.template.excludedTraitPaths);
       if (included) set.delete(traitPath);
       else set.add(traitPath);
-      return { ...current, [kind]: { ...tpl, excludedTraitPaths: Array.from(set) } };
+      return { ...current, template: { ...current.template, excludedTraitPaths: Array.from(set) } };
     });
   }
 
-  function setLayerTraitsInTemplate(kind: TemplateKind, layer: TraitLayer, included: boolean) {
-    setTemplates((current) => {
-      const tpl = current[kind];
-      const set = new Set(tpl.excludedTraitPaths);
+  function setLayerTraitsInTemplate(layer: TraitLayer, included: boolean) {
+    setRules((current) => {
+      const set = new Set(current.template.excludedTraitPaths);
       for (const trait of layer.traits) {
         if (included) set.delete(trait.relativePath);
         else set.add(trait.relativePath);
       }
-      return { ...current, [kind]: { ...tpl, excludedTraitPaths: Array.from(set) } };
+      return { ...current, template: { ...current.template, excludedTraitPaths: Array.from(set) } };
     });
   }
 
   function addTraitPair(a: string, b: string) {
     if (!a || !b || a === b) return;
-    setTemplates((current) => {
+    setRules((current) => {
       const exists = current.traitPairs.some(
         (pair) => (pair.a === a && pair.b === b) || (pair.a === b && pair.b === a),
       );
@@ -562,14 +529,14 @@ export function ArtGeneratorStudio() {
   }
 
   function removeTraitPair(index: number) {
-    setTemplates((current) => ({
+    setRules((current) => ({
       ...current,
       traitPairs: current.traitPairs.filter((_, i) => i !== index),
     }));
   }
 
   function setLayerExclusion(sourceLayerId: string, excludeLayerIds: string[]) {
-    setTemplates((current) => {
+    setRules((current) => {
       const filtered = current.layerExclusions.filter((rule) => rule.sourceLayerId !== sourceLayerId);
       const cleaned = excludeLayerIds.filter((id) => id && id !== sourceLayerId);
       if (cleaned.length === 0) {
@@ -584,7 +551,7 @@ export function ArtGeneratorStudio() {
 
   function addLayerExclusion(sourceLayerId: string) {
     if (!sourceLayerId) return;
-    setTemplates((current) => {
+    setRules((current) => {
       if (current.layerExclusions.some((rule) => rule.sourceLayerId === sourceLayerId)) return current;
       return {
         ...current,
@@ -594,7 +561,7 @@ export function ArtGeneratorStudio() {
   }
 
   function removeLayerExclusion(sourceLayerId: string) {
-    setTemplates((current) => ({
+    setRules((current) => ({
       ...current,
       layerExclusions: current.layerExclusions.filter((rule) => rule.sourceLayerId !== sourceLayerId),
     }));
@@ -623,7 +590,7 @@ export function ArtGeneratorStudio() {
       const result = simulateCollection({
         layers: orderedLayers,
         layerOrder,
-        templates,
+        rules,
         weights: traitWeights,
         targetSize: targetCollectionSize,
       });
@@ -639,15 +606,14 @@ export function ArtGeneratorStudio() {
       return;
     }
     const next = Array.from({ length: count }, () => {
-      const kind = pickTemplateKind(templates.templateAWeight);
-      const { selection } = rollFromTemplate(library.layers, templates[kind], traitWeights, Math.random, {
-        traitPairs: templates.traitPairs,
-        layerExclusions: templates.layerExclusions,
+      const { selection } = rollFromTemplate(library.layers, rules.template, traitWeights, Math.random, {
+        traitPairs: rules.traitPairs,
+        layerExclusions: rules.layerExclusions,
       });
       const preset = PREVIEW_EFFECT_PRESETS.length > 0
         ? PREVIEW_EFFECT_PRESETS[Math.floor(Math.random() * PREVIEW_EFFECT_PRESETS.length)]
         : null;
-      return { kind, selection, presetId: preset?.id ?? null };
+      return { selection, presetId: preset?.id ?? null };
     });
     setActiveGalleryTileIndex(null);
     setGallerySeeds(next);
@@ -678,27 +644,59 @@ export function ArtGeneratorStudio() {
       computeRemap?: (meta: Record<string, unknown>) => Record<string, string>;
     } = {},
   ) {
-    const rootDir = rootDirInput.trim();
-    if (!rootDir) {
-      setManageState({ loading: false, error: 'Load a trait root first.', success: null });
-      return;
-    }
-
     setManageState({ loading: true, error: null, success: null });
 
     try {
-      const response = await fetch('/api/art-generator/manage', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ rootDir, ...payload }),
-      });
-      const body = (await response.json()) as { library?: TraitLibrary; meta?: Record<string, unknown>; error?: string };
-      if (!response.ok || body.error || !body.library) {
-        throw new Error(body.error || 'Failed to update trait library.');
+      const store = getAssetStore();
+      const action = payload.action as string;
+      let library: TraitLibrary | null = null;
+      let meta: Record<string, unknown> = {};
+
+      switch (action) {
+        case 'createLayer': {
+          library = await store.createLayer(
+            String(payload.layerName ?? ''),
+            typeof payload.preferredOrder === 'number' ? (payload.preferredOrder as number) : undefined,
+          );
+          break;
+        }
+        case 'renameLayer': {
+          const result = await store.renameLayer(
+            String(payload.layerDirectoryName ?? ''),
+            String(payload.nextLayerName ?? ''),
+          );
+          library = result.library;
+          meta = result.meta;
+          break;
+        }
+        case 'deleteLayer': {
+          library = await store.deleteLayer(String(payload.layerDirectoryName ?? ''));
+          break;
+        }
+        case 'renameTrait': {
+          const result = await store.renameTrait(
+            String(payload.assetRelativePath ?? ''),
+            String(payload.nextFileName ?? ''),
+          );
+          library = result.library;
+          meta = result.meta;
+          break;
+        }
+        case 'deleteTrait': {
+          library = await store.deleteTrait(String(payload.assetRelativePath ?? ''));
+          break;
+        }
+        case 'reorderLayers': {
+          library = await store.reorderLayers((payload.orderedDirectoryNames as string[]) ?? []);
+          break;
+        }
+        default:
+          throw new Error(`Unknown library action: ${action}`);
       }
 
-      const remap = options.computeRemap?.(body.meta ?? {}) ?? {};
-      applyLibrary(body.library, selectedTraits, options.focusRelativePath, remap);
+      if (!library) throw new Error('Library operation returned no library.');
+      const remap = options.computeRemap?.(meta) ?? {};
+      applyLibrary(library, selectedTraits, options.focusRelativePath, remap);
       setManageState({ loading: false, error: null, success: successMessage });
     } catch (error) {
       setManageState({
@@ -748,14 +746,29 @@ export function ArtGeneratorStudio() {
   }
 
   async function deleteLayer(layer: TraitLayer) {
-    if (!window.confirm(`Delete layer “${layer.name}” and all of its traits?`)) {
-      return;
-    }
+    const impact = await getAssetStore().impactOfDeletingLayer(layer.directoryName);
+    const summary: string[] = [];
+    summary.push(`${layer.traits.length} trait${layer.traits.length === 1 ? '' : 's'} will be removed from OPFS.`);
+    const r = impact.rulesAffected;
+    if (r.alwaysMarked) summary.push('Layer is marked Always.');
+    if (r.neverMarked) summary.push('Layer is marked Never.');
+    if (r.exclusionSourceCount > 0) summary.push(`${r.exclusionSourceCount} layer-exclusion rule${r.exclusionSourceCount === 1 ? '' : 's'} source this layer.`);
+    if (r.exclusionTargetCount > 0) summary.push(`${r.exclusionTargetCount} rule${r.exclusionTargetCount === 1 ? '' : 's'} exclude this layer as a target.`);
+    if (r.traitPairsAffected > 0) summary.push(`${r.traitPairsAffected} trait pair${r.traitPairsAffected === 1 ? '' : 's'} reference these traits.`);
+    if (r.configReferences > 0) summary.push(`${r.configReferences} saved config${r.configReferences === 1 ? '' : 's'} reference this layer.`);
+    if (summary.length === 1) summary.push('No rules currently reference this layer.');
 
-    await manageLibraryAction(
-      { action: 'deleteLayer', layerDirectoryName: layer.directoryName },
-      `Deleted layer “${layer.name}”.`,
-    );
+    setPendingDelete({
+      kind: 'layer',
+      label: layer.name,
+      impactSummary: summary,
+      confirm: async () => {
+        await manageLibraryAction(
+          { action: 'deleteLayer', layerDirectoryName: layer.directoryName },
+          `Deleted layer “${layer.name}”.`,
+        );
+      },
+    });
   }
 
   async function renameTrait(trait: TraitAsset) {
@@ -777,19 +790,29 @@ export function ArtGeneratorStudio() {
   }
 
   async function deleteTrait(trait: TraitAsset) {
-    if (!window.confirm(`Delete trait “${trait.name}”?`)) {
-      return;
-    }
+    const impact = await getAssetStore().impactOfDeletingTrait(trait.relativePath);
+    const summary: string[] = [];
+    if (impact.weightSet) summary.push('Trait has a custom rarity weight.');
+    if (impact.excludedInRules) summary.push('Trait is on the excluded-traits list.');
+    if (impact.traitPairsAffected > 0) summary.push(`${impact.traitPairsAffected} trait pair rule${impact.traitPairsAffected === 1 ? '' : 's'} reference this trait.`);
+    if (impact.selectedInConfigs > 0) summary.push(`${impact.selectedInConfigs} saved config${impact.selectedInConfigs === 1 ? '' : 's'} currently select this trait.`);
+    if (summary.length === 0) summary.push('No rules currently reference this trait.');
 
-    await manageLibraryAction(
-      { action: 'deleteTrait', assetRelativePath: trait.relativePath },
-      `Deleted trait “${trait.name}”.`,
-    );
+    setPendingDelete({
+      kind: 'trait',
+      label: trait.name,
+      impactSummary: summary,
+      confirm: async () => {
+        await manageLibraryAction(
+          { action: 'deleteTrait', assetRelativePath: trait.relativePath },
+          `Deleted trait “${trait.name}”.`,
+        );
+      },
+    });
   }
 
   async function replaceTraitWithFile(file: File, assetRelativePath: string) {
-    const rootDir = rootDirInput.trim();
-    if (!rootDir || !assetRelativePath) {
+    if (!assetRelativePath) {
       setManageState({ loading: false, error: 'Choose a replacement target first.', success: null });
       return;
     }
@@ -797,26 +820,9 @@ export function ArtGeneratorStudio() {
     setManageState({ loading: true, error: null, success: null });
 
     try {
-      const formData = new FormData();
-      formData.append('rootDir', rootDir);
-      formData.append('assetRelativePath', assetRelativePath);
-      formData.append('file', file);
-
-      const response = await fetch('/api/art-generator/replace', {
-        method: 'POST',
-        body: formData,
-      });
-
-      const payload = (await response.json()) as
-        | { replacement: { relativePath: string; fileName: string }; library: TraitLibrary }
-        | { error: string };
-
-      if (!response.ok || 'error' in payload) {
-        throw new Error('error' in payload ? payload.error : 'Failed to replace asset.');
-      }
-
-      applyLibrary(payload.library, selectedTraits, payload.replacement.relativePath);
-      setManageState({ loading: false, error: null, success: `Replaced ${payload.replacement.fileName}.` });
+      const result = await getAssetStore().replaceTrait(assetRelativePath, file);
+      applyLibrary(result.library, selectedTraits, result.replacement.relativePath);
+      setManageState({ loading: false, error: null, success: `Replaced ${result.replacement.fileName}.` });
       if (replaceFileInputRef.current) {
         replaceFileInputRef.current.value = '';
       }
@@ -836,8 +842,7 @@ export function ArtGeneratorStudio() {
   }
 
   async function createTraitFromDataUrl(dataUrl: string, layerName: string, traitName: string, preferredOrder?: number) {
-    const rootDir = rootDirInput.trim();
-    if (!rootDir || !layerName.trim()) {
+    if (!layerName.trim()) {
       setManageState({ loading: false, error: 'Choose a target layer before creating a pasted trait.', success: null });
       return;
     }
@@ -847,35 +852,18 @@ export function ArtGeneratorStudio() {
     try {
       const blob = await (await fetch(dataUrl)).blob();
       const fileName = buildNewTraitFileName(traitName);
-      const file = new File([blob], fileName, { type: blob.type || 'image/png' });
-      const formData = new FormData();
-      formData.append('rootDir', rootDir);
-      formData.append('layerName', layerName.trim());
-      if (preferredOrder && Number.isFinite(preferredOrder)) {
-        formData.append('layerOrder', String(preferredOrder));
-      }
-      formData.append('file', file);
-
-      const response = await fetch('/api/art-generator/upload', {
-        method: 'POST',
-        body: formData,
+      const result = await getAssetStore().uploadTrait({
+        layerName: layerName.trim(),
+        fileName,
+        blob,
+        displayName: traitName,
+        preferredOrder: preferredOrder && Number.isFinite(preferredOrder) ? preferredOrder : undefined,
       });
 
-      const payload = (await response.json()) as
-        | {
-            upload: { layerDirectoryName: string; fileName: string; relativePath: string };
-            library: TraitLibrary;
-          }
-        | { error: string };
-
-      if (!response.ok || 'error' in payload) {
-        throw new Error('error' in payload ? payload.error : 'Failed to create trait from pasted image.');
-      }
-
-      applyLibrary(payload.library, selectedTraits, payload.upload.relativePath);
-      setReplaceTargetAssetPath(payload.upload.relativePath);
+      applyLibrary(result.library, selectedTraits, result.upload.relativePath);
+      setReplaceTargetAssetPath(result.upload.relativePath);
       setPendingNewTrait(null);
-      setManageState({ loading: false, error: null, success: `Created new trait “${payload.upload.fileName}”.` });
+      setManageState({ loading: false, error: null, success: `Created new trait “${result.upload.fileName}”.` });
       setPastedImages((current) => current.filter((image) => image.dataUrl !== dataUrl));
       setLastPastedImageId((current) => (lastPastedImage?.dataUrl === dataUrl ? null : current));
     } catch (error) {
@@ -934,8 +922,23 @@ export function ArtGeneratorStudio() {
   const pendingTraitDraft = normalizePendingNewTrait(pendingNewTrait, uploadLayerName || 'background');
   const totalTraitCount = library?.layers.reduce((sum, layer) => sum + layer.traits.length, 0) ?? 0;
 
-  const selectedRootLabel = library?.rootDir || rootDirInput || 'No root selected';
   const forgeStatusLabel = library ? 'Forge armed' : 'Awaiting root';
+
+  async function commitProjectRename() {
+    const trimmed = projectNameDraft.trim();
+    setRenamingProject(false);
+    if (!trimmed || trimmed === projectName) return;
+    try {
+      const store = getAssetStore();
+      const project = await store.getActiveProject();
+      if (project) {
+        await store.renameProject(project.id, trimmed);
+        setProjectName(trimmed);
+      }
+    } catch {
+      // Non-fatal — keep the old name.
+    }
+  }
 
   const autosaveLabel =
     autosaveStatus === 'saving' ? 'Autosaving…'
@@ -945,28 +948,99 @@ export function ArtGeneratorStudio() {
 
   return (
     <main className="studio-shell">
-      <header className="studio-toolbar">
-        <div className="toolbar-brand">
-          <h1 className="toolbar-title">neochibi studio trait forge</h1>
-          <span className="toolbar-root" title={selectedRootLabel}>{selectedRootLabel}</span>
-        </div>
-        <div className="toolbar-stats">
-          <span className="hero-chip hero-chip-acid">{forgeStatusLabel}</span>
-          <span className="hero-chip">{library?.layers.length ?? 0} layers</span>
-          <span className="hero-chip">{totalTraitCount} traits</span>
-          <span className={`hero-chip autosave-chip autosave-${autosaveStatus}`}>{autosaveLabel}</span>
-        </div>
-        <div className="toolbar-actions">
-          <button className="secondary-button small-button" onClick={randomizeSelection} type="button" disabled={!library}>
-            Shuffle
-          </button>
-          <button className="secondary-button small-button" onClick={loadLibrary} type="button" disabled={state.loading}>
-            {state.loading ? 'Loading…' : 'Reload'}
-          </button>
-        </div>
-      </header>
+      <div style={{ position: 'relative' }}>
+        <span
+          className="uru-tape uru-tape-mizuiro"
+          aria-hidden="true"
+          style={{ position: 'absolute', top: -8, left: 40, transform: 'rotate(-4deg)', zIndex: 2 }}
+        />
+        <header className="studio-toolbar uru-shell">
+          <div className="studio-toolbar-inner">
+            <div className="studio-toolbar-title-row">
+              <h1 className="uru-h1" style={{ fontSize: 'clamp(28px, 4vw, 44px)', margin: 0 }}>
+                urufulabs<span style={{ color: 'var(--pink-hot)' }}>studio</span> trait forge
+              </h1>
+              {renamingProject ? (
+                <input
+                  className="uru-input"
+                  autoFocus
+                  value={projectNameDraft}
+                  onChange={(event) => setProjectNameDraft(event.target.value)}
+                  onBlur={() => void commitProjectRename()}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter') void commitProjectRename();
+                    if (event.key === 'Escape') { setRenamingProject(false); setProjectNameDraft(projectName); }
+                  }}
+                  style={{ maxWidth: 260 }}
+                />
+              ) : (
+                <button
+                  type="button"
+                  className="uru-stamp uru-stamp-cream"
+                  onClick={() => { setProjectNameDraft(projectName); setRenamingProject(true); }}
+                  title="Click to rename this collection"
+                  style={{ maxWidth: 260, cursor: 'pointer' }}
+                >
+                  ✿ {projectName}
+                </button>
+              )}
+            </div>
+            <div className="studio-toolbar-stamps">
+              <span className="uru-stamp uru-stamp-mint">{forgeStatusLabel}</span>
+              <span className="uru-stamp uru-stamp-cream">
+                <span className="uru-num">{library?.layers.length ?? 0}</span> layers
+              </span>
+              <span className="uru-stamp uru-stamp-mizuiro">
+                <span className="uru-num">{totalTraitCount}</span> traits
+              </span>
+              <span
+                className={`uru-stamp autosave-chip autosave-${autosaveStatus} ${
+                  autosaveStatus === 'saving'
+                    ? 'uru-stamp-yolk uru-idle-bob'
+                    : autosaveStatus === 'error'
+                      ? 'uru-stamp-pink'
+                      : 'uru-stamp-mint'
+                }`}
+              >
+                {autosaveLabel}
+              </span>
+            </div>
+            <div className="studio-toolbar-actions">
+              <button className="uru-btn" onClick={randomizeSelection} type="button" disabled={!library}>
+                Shuffle
+              </button>
+              <button className="uru-btn uru-btn-cream" onClick={loadLibrary} type="button" disabled={state.loading}>
+                {state.loading ? 'Loading…' : 'Reload'}
+              </button>
+            </div>
+          </div>
+        </header>
+      </div>
 
-      {state.error ? <p className="error-banner">{state.error}</p> : null}
+      {state.error ? (
+        <div
+          className="uru-shell-tight error-banner"
+          role="alert"
+          style={{
+            borderColor: 'var(--pink-hot)',
+            background: 'var(--pink-warm)',
+            fontFamily: 'var(--font-pixel), monospace',
+            fontSize: 12,
+            textTransform: 'uppercase',
+            letterSpacing: '0.08em',
+          }}
+        >
+          {state.error}
+        </div>
+      ) : null}
+
+      <StudioSteps
+        hasLayers={Boolean(library && library.layers.length > 0)}
+        hasOutputs={outputCount > 0}
+        publishedCid={null}
+      />
+
+      <UploadDropzone onImport={() => void loadLibrary()} />
 
       <datalist id="layer-name-options">
         {layerNameSuggestions.map((layerName) => (
@@ -975,26 +1049,32 @@ export function ArtGeneratorStudio() {
       </datalist>
 
       <section className="studio-grid studio-grid-compact">
-        <aside className="panel panel-layers">
+        <aside className="uru-shell panel panel-layers">
           <div className="panel-header panel-header-tight">
-            <h2>Layers</h2>
+            <h2 className="uru-h2">Layers</h2>
           </div>
 
           {orderedLayers.length === 0 ? (
-            <p className="empty-state">Load a root directory to populate layers.</p>
+            <div className="uru-bubble empty-state">
+              Load a root directory to populate layers.
+            </div>
           ) : (
-            <div className="layer-list">
+            <div className="layer-list-compact">
               {orderedLayers.map((layer, index) => {
                 const selected = selectedTraits[layer.id] ?? '';
                 const selectedTrait = layer.traits.find((trait) => trait.id === selected) ?? null;
                 const armed = pendingNewTrait?.layerName?.toLowerCase() === layer.name.toLowerCase();
                 const replaceArmed = !!selectedTrait && pendingReplaceTarget?.relativePath === selectedTrait.relativePath;
                 return (
-                  <article className={`layer-card layer-card-compact${armed ? ' layer-card-armed' : ''}${replaceArmed ? ' layer-card-armed-replace' : ''}`} key={layer.id}>
-                    <div className="layer-card-compact-body">
-                      <div className="layer-reorder-stack">
+                  <article
+                    className={`layer-card layer-card-compact uru-polaroid${armed ? ' layer-card-armed' : ''}${replaceArmed ? ' layer-card-armed-replace' : ''}`}
+                    key={layer.id}
+                    data-active={armed || replaceArmed ? 'true' : undefined}
+                  >
+                    <div className="layer-card-row layer-card-compact-body">
+                      <div className="layer-card-order layer-reorder-stack">
                         <button
-                          className="icon-button"
+                          className="uru-chip icon-button"
                           type="button"
                           disabled={index === 0}
                           aria-label={`Move ${layer.name} up`}
@@ -1002,9 +1082,9 @@ export function ArtGeneratorStudio() {
                         >
                           ↑
                         </button>
-                        <span className="layer-index-mini">#{index + 1}</span>
+                        <span className="uru-eyebrow layer-index-mini">#{index + 1}</span>
                         <button
-                          className="icon-button"
+                          className="uru-chip icon-button"
                           type="button"
                           disabled={index === orderedLayers.length - 1}
                           aria-label={`Move ${layer.name} down`}
@@ -1013,19 +1093,47 @@ export function ArtGeneratorStudio() {
                           ↓
                         </button>
                       </div>
-                      <div className="layer-trait-thumb">
-                        {selectedTrait && library ? (
-                          <img alt={`${layer.name}: ${selectedTrait.name}`} src={buildAssetUrl(library.rootDir, selectedTrait)} />
-                        ) : (
-                          <span className="layer-trait-thumb-empty">—</span>
-                        )}
+                      <div className="uru-shell-inner-inner">
+                        <div className="layer-trait-thumb">
+                          {selectedTrait && library ? (
+                            <img alt={`${layer.name}: ${selectedTrait.name}`} src={buildAssetUrl(library.rootDir, selectedTrait)} />
+                          ) : (
+                            <span className="layer-trait-thumb-empty">—</span>
+                          )}
+                        </div>
                       </div>
                       <div className="layer-card-compact-main">
-                        <div className="layer-card-compact-head">
-                          <h3>{layer.name}</h3>
-                          <span className="layer-meta">{layer.traits.length} traits</span>
+                        <div className="layer-card-compact-head" style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
+                          <input
+                            className="uru-input"
+                            style={{ fontSize: 17, fontWeight: 700, maxWidth: 200 }}
+                            value={renameLayerDrafts[layer.directoryName] ?? layer.name}
+                            onChange={(event) => setRenameLayerDrafts((current) => ({ ...current, [layer.directoryName]: event.target.value }))}
+                            onBlur={() => {
+                              const draft = (renameLayerDrafts[layer.directoryName] || '').trim();
+                              if (draft && draft !== layer.name) void renameLayer(layer);
+                            }}
+                            onKeyDown={(event) => {
+                              if (event.key === 'Enter') (event.target as HTMLInputElement).blur();
+                              if (event.key === 'Escape') setRenameLayerDrafts((current) => ({ ...current, [layer.directoryName]: layer.name }));
+                            }}
+                            aria-label={`Rename layer ${layer.name}`}
+                          />
+                          <span className="uru-eyebrow layer-meta">
+                            <span className="uru-num">{layer.traits.length}</span> traits
+                          </span>
+                          <button
+                            type="button"
+                            className="uru-btn uru-btn-danger"
+                            style={{ marginLeft: 'auto' }}
+                            disabled={manageState.loading}
+                            onClick={() => void deleteLayer(layer)}
+                            title={`Delete layer “${layer.name}”`}
+                          >
+                            Delete layer
+                          </button>
                         </div>
-                        <div className="layer-card-compact-row">
+                        <div className="layer-card-actions layer-card-compact-row">
                           {library ? (
                             <TraitPicker
                               layer={layer}
@@ -1036,7 +1144,7 @@ export function ArtGeneratorStudio() {
                             />
                           ) : null}
                           <button
-                            className={`secondary-button small-button${armed ? ' active-reference-chip' : ''}`}
+                            className={`uru-btn${armed ? ' uru-btn-mint' : ''}`}
                             type="button"
                             onClick={() => {
                               if (armed) {
@@ -1050,7 +1158,7 @@ export function ArtGeneratorStudio() {
                             {armed ? 'Paste armed…' : 'Paste new'}
                           </button>
                           <button
-                            className="secondary-button small-button"
+                            className="uru-btn"
                             type="button"
                             disabled={layer.traits.length === 0}
                             onClick={() => randomizeLayer(layer)}
@@ -1060,16 +1168,16 @@ export function ArtGeneratorStudio() {
                           </button>
                         </div>
                         {selectedTrait ? (
-                          <div className="layer-card-compact-row">
+                          <div className="layer-card-actions layer-card-compact-row">
                             <input
-                              className="layer-trait-select"
+                              className="uru-input layer-trait-select"
                               value={renameTraitDrafts[selectedTrait.relativePath] ?? selectedTrait.name}
                               onChange={(event) => setRenameTraitDrafts((current) => ({ ...current, [selectedTrait.relativePath]: event.target.value }))}
                               placeholder="Trait name"
                               type="text"
                             />
                             <button
-                              className="secondary-button small-button"
+                              className="uru-btn"
                               type="button"
                               disabled={manageState.loading}
                               onClick={() => void renameTrait(selectedTrait)}
@@ -1077,7 +1185,7 @@ export function ArtGeneratorStudio() {
                               Rename
                             </button>
                             <button
-                              className={`secondary-button small-button${replaceArmed ? ' active-reference-chip' : ''}`}
+                              className={`uru-btn uru-btn-primary${replaceArmed ? ' active-reference-chip' : ''}`}
                               type="button"
                               disabled={manageState.loading}
                               onClick={() => {
@@ -1098,7 +1206,7 @@ export function ArtGeneratorStudio() {
                               {replaceArmed ? 'Replace armed…' : 'Replace'}
                             </button>
                             <button
-                              className="secondary-button small-button danger-button"
+                              className="uru-btn uru-btn-danger danger-button"
                               type="button"
                               disabled={manageState.loading}
                               onClick={() => void deleteTrait(selectedTrait)}
@@ -1129,46 +1237,47 @@ export function ArtGeneratorStudio() {
 
 
       {activeTab === 'library' ? (
-      <section className="panel manager-panel tab-panel">
+      <section className="uru-shell panel manager-panel tab-panel">
         <div className="panel-header compact-panel-header">
-          <h2>Layer + trait management</h2>
-          <p>Create layers, persist reordered folders, rename selected traits, delete assets, create new pasted traits, and replace a target image by file upload or Ctrl+V paste.</p>
+          <h2 className="uru-h2">Layer + trait management</h2>
+          <p style={{ margin: '4px 0 0', color: 'var(--anchor-soft)', fontFamily: 'var(--font-round), Klee One, cursive', fontSize: 13 }}>Create layers, persist reordered folders, rename selected traits, delete assets, create new pasted traits, and replace a target image by file upload or Ctrl+V paste.</p>
         </div>
 
         <div className="manager-grid">
           <label className="field-group">
             <span>New layer name</span>
-            <input value={newLayerName} onChange={(event) => setNewLayerName(event.target.value)} placeholder="Headwear" type="text" />
+            <input className="uru-input" value={newLayerName} onChange={(event) => setNewLayerName(event.target.value)} placeholder="Headwear" type="text" />
           </label>
           <label className="field-group">
             <span>Layer order (optional)</span>
-            <input value={newLayerOrder} onChange={(event) => setNewLayerOrder(event.target.value)} inputMode="numeric" min="1" type="number" placeholder="Auto" />
+            <input className="uru-input" value={newLayerOrder} onChange={(event) => setNewLayerOrder(event.target.value)} inputMode="numeric" min="1" type="number" placeholder="Auto" />
           </label>
-          <button className="primary-button" type="button" onClick={createLayer} disabled={manageState.loading}>
+          <button className="uru-btn uru-btn-primary" type="button" onClick={createLayer} disabled={manageState.loading}>
             Create layer
           </button>
-          <button className="secondary-button" type="button" onClick={persistLayerOrder} disabled={!library || manageState.loading}>
+          <button className="uru-btn" type="button" onClick={persistLayerOrder} disabled={!library || manageState.loading}>
             Persist layer order
           </button>
         </div>
 
         {orderedLayers.length > 0 ? (
           <div className="layer-manager-list">
-            <h3>Existing layers ({orderedLayers.length})</h3>
+            <h3 className="uru-h2" style={{ fontSize: 16 }}>Existing layers (<span className="uru-num">{orderedLayers.length}</span>)</h3>
             {orderedLayers.map((layer) => (
               <div className="layer-manager-row" key={layer.directoryName}>
                 <div className="layer-manager-meta">
                   <strong>{layer.name}</strong>
-                  <span className="preset-meta">{layer.traits.length} trait{layer.traits.length === 1 ? '' : 's'} · {layer.directoryName}/</span>
+                  <span className="uru-eyebrow preset-meta"><span className="uru-num">{layer.traits.length}</span> trait{layer.traits.length === 1 ? '' : 's'} · {layer.directoryName}/</span>
                 </div>
                 <input
+                  className="uru-input"
                   type="text"
                   value={renameLayerDrafts[layer.directoryName] ?? layer.name}
                   onChange={(event) => setRenameLayerDrafts((current) => ({ ...current, [layer.directoryName]: event.target.value }))}
                   placeholder="New layer name"
                 />
                 <button
-                  className="secondary-button small-button"
+                  className="uru-btn"
                   type="button"
                   disabled={manageState.loading || !(renameLayerDrafts[layer.directoryName] || '').trim() || (renameLayerDrafts[layer.directoryName] || '').trim() === layer.name}
                   onClick={() => void renameLayer(layer)}
@@ -1176,7 +1285,7 @@ export function ArtGeneratorStudio() {
                   Rename
                 </button>
                 <button
-                  className="secondary-button small-button danger-button"
+                  className="uru-btn uru-btn-danger danger-button"
                   type="button"
                   disabled={manageState.loading}
                   onClick={() => void deleteLayer(layer)}
@@ -1190,16 +1299,16 @@ export function ArtGeneratorStudio() {
 
         {orderedLayers.length > 0 ? (
           <div className="weights-manager">
-            <h3>Trait rarities</h3>
-            <p className="preset-meta">Weights are relative within a layer. Default 1. Higher = more common. 0 = never roll. Stored in <code>{'<root>/.studio-weights.json'}</code>.</p>
+            <h3 className="uru-h2" style={{ fontSize: 16 }}>Trait rarities</h3>
+            <p className="uru-eyebrow preset-meta">Weights are relative within a layer. Default 1. Higher = more common. 0 = never roll. Stored in <code>{'<root>/.studio-weights.json'}</code>.</p>
             {orderedLayers.map((layer) => (
               <details className="weights-layer" key={layer.id}>
                 <summary>
                   <strong>{layer.name}</strong>
-                  <span className="preset-meta">{layer.traits.length} trait{layer.traits.length === 1 ? '' : 's'}</span>
+                  <span className="uru-eyebrow preset-meta"><span className="uru-num">{layer.traits.length}</span> trait{layer.traits.length === 1 ? '' : 's'}</span>
                 </summary>
                 {layer.traits.length === 0 ? (
-                  <p className="empty-state">No traits in this layer yet.</p>
+                  <div className="uru-bubble empty-state">No traits in this layer yet.</div>
                 ) : (
                   <ul className="weights-trait-list">
                     {layer.traits.map((trait) => {
@@ -1209,6 +1318,7 @@ export function ArtGeneratorStudio() {
                           <img alt={trait.name} className="weights-trait-thumb" src={buildAssetUrl(library!.rootDir, trait)} />
                           <span className="weights-trait-name">{trait.name}</span>
                           <input
+                            className="uru-input"
                             type="number"
                             min={0}
                             max={1000}
@@ -1233,7 +1343,8 @@ export function ArtGeneratorStudio() {
                               <button
                                 key={label}
                                 type="button"
-                                className={`weights-chip${weight === value ? ' weights-chip-active' : ''}`}
+                                className={`uru-chip weights-chip${weight === value ? ' weights-chip-active' : ''}`}
+                                data-active={weight === value ? 'true' : undefined}
                                 onClick={() => setTraitWeights((current) => ({ ...current, [trait.relativePath]: value }))}
                               >
                                 {label}
@@ -1253,7 +1364,7 @@ export function ArtGeneratorStudio() {
         <div className="replace-grid">
           <label className="field-group">
             <span>Replacement target</span>
-            <select value={replaceTargetAssetPath} onChange={(event) => setReplaceTargetAssetPath(event.target.value)}>
+            <select className="uru-input" value={replaceTargetAssetPath} onChange={(event) => setReplaceTargetAssetPath(event.target.value)}>
               <option value="">Select trait asset</option>
               {library?.layers.flatMap((layer) => layer.traits.map((trait) => (
                 <option key={trait.relativePath} value={trait.relativePath}>{layer.name} / {trait.name}</option>
@@ -1265,7 +1376,7 @@ export function ArtGeneratorStudio() {
             <input ref={replaceFileInputRef} type="file" accept=".png,.webp,.jpg,.jpeg,.gif,.svg" />
           </label>
           <button
-            className="secondary-button"
+            className="uru-btn"
             type="button"
             disabled={!replaceTargetAssetPath || manageState.loading}
             onClick={() => {
@@ -1283,6 +1394,7 @@ export function ArtGeneratorStudio() {
           <label className="field-group">
             <span>New pasted trait layer</span>
             <input
+              className="uru-input"
               list="layer-name-options"
               value={pendingNewTrait?.layerName ?? ''}
               onChange={(event) => setPendingNewTrait((current) => ({
@@ -1296,6 +1408,7 @@ export function ArtGeneratorStudio() {
           <label className="field-group">
             <span>New pasted trait name</span>
             <input
+              className="uru-input"
               value={pendingNewTrait?.traitName ?? ''}
               onChange={(event) => setPendingNewTrait((current) => ({
                 ...normalizePendingNewTrait({ layerName: current?.layerName, traitName: event.target.value }, uploadLayerName || 'background'),
@@ -1306,7 +1419,7 @@ export function ArtGeneratorStudio() {
             />
           </label>
           <button
-            className="secondary-button"
+            className="uru-btn"
             type="button"
             disabled={manageState.loading || !(pendingTraitDraft.layerName.trim())}
             onClick={() => startNewPastedTrait(pendingTraitDraft.layerName, pendingTraitDraft.traitName)}
@@ -1314,7 +1427,7 @@ export function ArtGeneratorStudio() {
             Arm paste-create
           </button>
           <button
-            className="primary-button"
+            className="uru-btn uru-btn-primary"
             type="button"
             disabled={manageState.loading || !(pendingTraitDraft.layerName.trim())}
             onClick={() => startNewPastedTrait(pendingTraitDraft.layerName, pendingTraitDraft.traitName, true)}
@@ -1324,16 +1437,16 @@ export function ArtGeneratorStudio() {
         </div>
 
         {lastPastedImage ? (
-          <div className="reference-block sticky-paste-block">
-            <h3>Last pasted image</h3>
+          <div className="uru-shell-inner reference-block sticky-paste-block">
+            <h3 className="uru-h2" style={{ fontSize: 16 }}>Last pasted image</h3>
             <div className="sticky-paste-row">
               <img alt={lastPastedImage.name} className="sticky-paste-image" src={lastPastedImage.dataUrl} />
               <div className="pasted-image-actions">
                 <strong>{lastPastedImage.name}</strong>
-                <span className="preset-meta">Quick actions for the most recent paste.</span>
+                <span className="uru-eyebrow preset-meta">Quick actions for the most recent paste.</span>
                 <div className="preset-actions">
                   <button
-                    className="secondary-button small-button"
+                    className="uru-btn"
                     type="button"
                     disabled={!replaceTargetAssetPath || manageState.loading}
                     onClick={() => void replaceTraitWithDataUrl(lastPastedImage.dataUrl, replaceTargetAssetPath, lastPastedImage.name)}
@@ -1341,7 +1454,7 @@ export function ArtGeneratorStudio() {
                     Paste over selected trait
                   </button>
                   <button
-                    className="secondary-button small-button"
+                    className="uru-btn uru-btn-mint"
                     type="button"
                     disabled={manageState.loading}
                     onClick={() => void createTraitFromDataUrl(lastPastedImage.dataUrl, pendingTraitDraft.layerName, pendingTraitDraft.traitName)}
@@ -1349,7 +1462,7 @@ export function ArtGeneratorStudio() {
                     Create from last paste
                   </button>
                   <button
-                    className="secondary-button small-button danger-button"
+                    className="uru-btn uru-btn-danger danger-button"
                     type="button"
                     onClick={() => {
                       setPastedImages((current) => current.filter((image) => image.id !== lastPastedImage.id));
@@ -1365,225 +1478,236 @@ export function ArtGeneratorStudio() {
         ) : null}
 
         {pendingNewTrait ? (
-          <div className="reference-block pending-paste-block">
-            <h3>{pendingNewTrait.autoCreateOnPaste ? 'Auto-create armed' : 'Paste-create armed'}</h3>
-            <p className="preset-meta">
+          <div className="uru-shell-inner reference-block pending-paste-block">
+            <h3 className="uru-h2" style={{ fontSize: 16 }}>{pendingNewTrait.autoCreateOnPaste ? 'Auto-create armed' : 'Paste-create armed'}</h3>
+            <p className="uru-eyebrow preset-meta">
               {pendingNewTrait.autoCreateOnPaste
                 ? `Next Ctrl+V image will immediately create “${pendingTraitDraft.traitName}” in ${pendingTraitDraft.layerName}.`
                 : `Next Ctrl+V image will create “${pendingTraitDraft.traitName}” in ${pendingTraitDraft.layerName}. Then you can paste again to overwrite that created trait.`}
             </p>
             <div className="preset-actions">
-              <button className="secondary-button small-button" type="button" onClick={() => setPendingNewTrait(null)}>
+              <button className="uru-btn" type="button" onClick={() => setPendingNewTrait(null)}>
                 Cancel
               </button>
             </div>
           </div>
         ) : null}
 
-        {manageState.error ? <p className="error-banner">{manageState.error}</p> : null}
-        {manageState.success ? <p className="success-banner">{manageState.success}</p> : null}
+        {manageState.error ? (
+          <div
+            className="uru-shell-tight error-banner"
+            role="alert"
+            style={{
+              borderColor: 'var(--pink-hot)',
+              background: 'var(--pink-warm)',
+              fontFamily: 'var(--font-pixel), monospace',
+              fontSize: 12,
+              textTransform: 'uppercase',
+              letterSpacing: '0.08em',
+            }}
+          >
+            {manageState.error}
+          </div>
+        ) : null}
+        {manageState.success ? (
+          <div
+            className="uru-shell-tight success-banner"
+            role="status"
+            style={{
+              borderColor: 'var(--mint-hot)',
+              background: 'var(--mint)',
+              fontFamily: 'var(--font-pixel), monospace',
+              fontSize: 12,
+              textTransform: 'uppercase',
+              letterSpacing: '0.08em',
+            }}
+          >
+            {manageState.success}
+          </div>
+        ) : null}
       </section>
       ) : null}
 
       {activeTab === 'templates' ? (
-      <section className="panel tab-panel">
+      <section className="uru-shell panel tab-panel">
         <div className="panel-header compact-panel-header">
-          <h2>Collection templates</h2>
-          <p>Two templates: {TEMPLATE_LABELS.templateA} and {TEMPLATE_LABELS.templateB}. Mark layers as Always (must include), Never (skipped), or Optional. The Collection preview gallery rolls each tile against a template picked by the distribution below.</p>
-        </div>
-
-        <div className="template-distribution">
-          <label className="field-group">
-            <span>{TEMPLATE_LABELS.templateA} weight ({templates.templateAWeight}%)</span>
-            <input
-              type="range"
-              min={0}
-              max={100}
-              step={1}
-              value={templates.templateAWeight}
-              onChange={(event) => updateTemplateAWeight(Number(event.target.value))}
-            />
-          </label>
-          <div className="template-distribution-readout">
-            <span><strong>{templates.templateAWeight}%</strong> {TEMPLATE_LABELS.templateA}</span>
-            <span><strong>{100 - templates.templateAWeight}%</strong> {TEMPLATE_LABELS.templateB}</span>
-          </div>
+          <h2 className="uru-h2">Collection rules</h2>
+          <p style={{ margin: '4px 0 0', color: 'var(--anchor-soft)', fontFamily: 'var(--font-round), Klee One, cursive', fontSize: 13 }}>Mark each layer as Always (must include), Never (skipped), or Optional. Optional layers get an appearance chance and can skip other layers when they roll. Trait pairs and layer exclusions apply on top of these rules.</p>
         </div>
 
         {orderedLayers.length === 0 ? (
-          <p className="empty-state">Load a root directory to configure templates.</p>
+          <div className="uru-bubble empty-state">Load a root directory to configure rules.</div>
         ) : (
-          <div className="template-grid">
-            {(['templateA', 'templateB'] as TemplateKind[]).map((kind) => (
-              <div className="template-card" key={kind}>
-                <h3>{TEMPLATE_LABELS[kind]}</h3>
-                <ul className="template-layer-list">
-                  {orderedLayers.map((layer) => {
-                    const state = getLayerTemplateState(templates[kind], layer.id);
-                    const layerRule = getTemplateLayerRule(templates[kind], layer.id);
-                    const chancePercent = state === 'always' ? 100 : state === 'never' ? 0 : layerRule.chancePercent;
-                    const skipCount = layerRule.excludeLayerIds.length;
-                    const excludedSet = new Set(templates[kind].excludedTraitPaths);
-                    const includedCount = layer.traits.filter((t) => !excludedSet.has(t.relativePath)).length;
-                    const allIncluded = layer.traits.length > 0 && includedCount === layer.traits.length;
-                    return (
-                      <li className="template-layer-row" key={layer.id}>
-                        <div className="template-layer-row-head">
-                          <div className="template-layer-name">
-                            <strong>{layer.name}</strong>
-                            <span className="preset-meta">
-                              {includedCount}/{layer.traits.length} trait{layer.traits.length === 1 ? '' : 's'}
-                            </span>
-                          </div>
-                          <div className="template-toggle" role="group" aria-label={`${TEMPLATE_LABELS[kind]} ${layer.name} state`}>
-                            {(['always', 'optional', 'never'] as const).map((opt) => (
-                              <button
-                                key={opt}
-                                type="button"
-                                className={`template-toggle-button template-toggle-${opt}${state === opt ? ' template-toggle-active' : ''}`}
-                                onClick={() => updateTemplateLayerState(kind, layer.id, opt)}
-                              >
-                                {opt === 'always' ? 'Always' : opt === 'never' ? 'Never' : 'Optional'}
-                              </button>
-                            ))}
-                          </div>
+          <div className="uru-shell-inner template-card">
+            <h3 className="uru-h2" style={{ fontSize: 16 }}>Layer rules</h3>
+            <ul className="template-layer-list">
+              {orderedLayers.map((layer) => {
+                const state = getLayerTemplateState(rules.template, layer.id);
+                const layerRule = getTemplateLayerRule(rules.template, layer.id);
+                const chancePercent = state === 'always' ? 100 : state === 'never' ? 0 : layerRule.chancePercent;
+                const skipCount = layerRule.excludeLayerIds.length;
+                const excludedSet = new Set(rules.template.excludedTraitPaths);
+                const includedCount = layer.traits.filter((t) => !excludedSet.has(t.relativePath)).length;
+                const allIncluded = layer.traits.length > 0 && includedCount === layer.traits.length;
+                return (
+                  <li className="template-layer-row" key={layer.id}>
+                    <div className="template-layer-row-head">
+                      <div className="template-layer-name">
+                        <strong>{layer.name}</strong>
+                        <span className="uru-eyebrow preset-meta">
+                          <span className="uru-num">{includedCount}</span>/<span className="uru-num">{layer.traits.length}</span> trait{layer.traits.length === 1 ? '' : 's'}
+                        </span>
+                      </div>
+                      <div className="template-toggle" role="group" aria-label={`${layer.name} state`}>
+                        {(['always', 'optional', 'never'] as const).map((opt) => (
+                          <button
+                            key={opt}
+                            type="button"
+                            className={`uru-chip template-toggle-button template-toggle-${opt}${state === opt ? ' template-toggle-active' : ''}`}
+                            data-active={state === opt ? 'true' : undefined}
+                            onClick={() => updateTemplateLayerState(layer.id, opt)}
+                          >
+                            {opt === 'always' ? 'Always' : opt === 'never' ? 'Never' : 'Optional'}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    {state !== 'never' ? (
+                      <div className="template-layer-rule-strip">
+                        <label className="template-layer-chance">
+                          <span className="uru-eyebrow">Appears</span>
+                          <input
+                            className="uru-input"
+                            type="number"
+                            min={0}
+                            max={100}
+                            step={1}
+                            value={chancePercent}
+                            disabled={state !== 'optional'}
+                            onChange={(event) => {
+                              const next = Number(event.target.value);
+                              updateTemplateLayerChance(layer.id, Number.isFinite(next) ? next : 0);
+                            }}
+                          />
+                          <span>%</span>
+                        </label>
+                        {state === 'optional' ? (
+                          <input
+                            aria-label={`${layer.name} appearance chance`}
+                            className="template-layer-chance-range"
+                            type="range"
+                            min={0}
+                            max={100}
+                            step={1}
+                            value={chancePercent}
+                            onChange={(event) => updateTemplateLayerChance(layer.id, Number(event.target.value))}
+                          />
+                        ) : (
+                          <span className="uru-eyebrow preset-meta">Always uses 100%</span>
+                        )}
+                      </div>
+                    ) : null}
+                    {state !== 'never' ? (
+                      <details className="template-layer-conditional">
+                        <summary>
+                          <span>Skips when present</span>
+                          <span className="uru-eyebrow preset-meta">
+                            {skipCount === 0 ? 'none' : <><span className="uru-num">{skipCount}</span> layer{skipCount === 1 ? '' : 's'}</>}
+                          </span>
+                        </summary>
+                        <div className="layer-exclusion-targets template-layer-skip-targets">
+                          {orderedLayers
+                            .filter((targetLayer) => targetLayer.id !== layer.id)
+                            .map((targetLayer) => {
+                              const checked = layerRule.excludeLayerIds.includes(targetLayer.id);
+                              return (
+                                <label
+                                  key={targetLayer.id}
+                                  className={`uru-chip layer-exclusion-pill${checked ? ' layer-exclusion-pill-active' : ''}`}
+                                  data-active={checked ? 'true' : undefined}
+                                >
+                                  <input
+                                    type="checkbox"
+                                    checked={checked}
+                                    onChange={(event) => {
+                                      const next = new Set(layerRule.excludeLayerIds);
+                                      if (event.target.checked) next.add(targetLayer.id);
+                                      else next.delete(targetLayer.id);
+                                      updateTemplateLayerSkips(layer.id, Array.from(next));
+                                    }}
+                                  />
+                                  <span>skip {targetLayer.name}</span>
+                                </label>
+                              );
+                            })}
                         </div>
-                        {state !== 'never' ? (
-                          <div className="template-layer-rule-strip">
-                            <label className="template-layer-chance">
-                              <span>Appears</span>
-                              <input
-                                type="number"
-                                min={0}
-                                max={100}
-                                step={1}
-                                value={chancePercent}
-                                disabled={state !== 'optional'}
-                                onChange={(event) => {
-                                  const next = Number(event.target.value);
-                                  updateTemplateLayerChance(kind, layer.id, Number.isFinite(next) ? next : 0);
-                                }}
-                              />
-                              <span>%</span>
-                            </label>
-                            {state === 'optional' ? (
-                              <input
-                                aria-label={`${TEMPLATE_LABELS[kind]} ${layer.name} appearance chance`}
-                                className="template-layer-chance-range"
-                                type="range"
-                                min={0}
-                                max={100}
-                                step={1}
-                                value={chancePercent}
-                                onChange={(event) => updateTemplateLayerChance(kind, layer.id, Number(event.target.value))}
-                              />
-                            ) : (
-                              <span className="preset-meta">Always uses 100%</span>
-                            )}
-                          </div>
-                        ) : null}
-                        {state !== 'never' ? (
-                          <details className="template-layer-conditional">
-                            <summary>
-                              <span>Skips when present</span>
-                              <span className="preset-meta">
-                                {skipCount === 0 ? 'none' : `${skipCount} layer${skipCount === 1 ? '' : 's'}`}
-                              </span>
-                            </summary>
-                            <div className="layer-exclusion-targets template-layer-skip-targets">
-                              {orderedLayers
-                                .filter((targetLayer) => targetLayer.id !== layer.id)
-                                .map((targetLayer) => {
-                                  const checked = layerRule.excludeLayerIds.includes(targetLayer.id);
-                                  return (
-                                    <label
-                                      key={targetLayer.id}
-                                      className={`layer-exclusion-pill${checked ? ' layer-exclusion-pill-active' : ''}`}
-                                    >
-                                      <input
-                                        type="checkbox"
-                                        checked={checked}
-                                        onChange={(event) => {
-                                          const next = new Set(layerRule.excludeLayerIds);
-                                          if (event.target.checked) next.add(targetLayer.id);
-                                          else next.delete(targetLayer.id);
-                                          updateTemplateLayerSkips(kind, layer.id, Array.from(next));
-                                        }}
-                                      />
-                                      <span>skip {targetLayer.name}</span>
-                                    </label>
-                                  );
-                                })}
-                            </div>
-                          </details>
-                        ) : null}
-                        {layer.traits.length > 0 && state !== 'never' ? (
-                          <details className="template-trait-subset">
-                            <summary>
-                              <span>Trait subset</span>
-                              <span className="preset-meta">
-                                {includedCount === layer.traits.length
-                                  ? 'all included'
-                                  : `${includedCount} included, ${layer.traits.length - includedCount} excluded`}
-                              </span>
-                            </summary>
-                            <div className="template-trait-subset-actions">
-                              <button
-                                type="button"
-                                className="secondary-button small-button"
-                                disabled={allIncluded}
-                                onClick={() => setLayerTraitsInTemplate(kind, layer, true)}
-                              >
-                                Include all
-                              </button>
-                              <button
-                                type="button"
-                                className="secondary-button small-button"
-                                disabled={includedCount === 0}
-                                onClick={() => setLayerTraitsInTemplate(kind, layer, false)}
-                              >
-                                Exclude all
-                              </button>
-                            </div>
-                            <ul className="template-trait-subset-list">
-                              {layer.traits.map((trait) => {
-                                const excluded = excludedSet.has(trait.relativePath);
-                                return (
-                                  <li className="template-trait-subset-item" key={trait.relativePath}>
-                                    <label>
-                                      <input
-                                        type="checkbox"
-                                        checked={!excluded}
-                                        onChange={(event) => toggleTraitInTemplate(kind, trait.relativePath, event.target.checked)}
-                                      />
-                                      {library ? (
-                                        <img alt={trait.name} className="template-trait-subset-thumb" src={buildAssetUrl(library.rootDir, trait)} />
-                                      ) : null}
-                                      <span>{trait.name}</span>
-                                    </label>
-                                  </li>
-                                );
-                              })}
-                            </ul>
-                          </details>
-                        ) : null}
-                      </li>
-                    );
-                  })}
-                </ul>
-              </div>
-            ))}
+                      </details>
+                    ) : null}
+                    {layer.traits.length > 0 && state !== 'never' ? (
+                      <details className="template-trait-subset">
+                        <summary>
+                          <span>Trait subset</span>
+                          <span className="uru-eyebrow preset-meta">
+                            {includedCount === layer.traits.length
+                              ? 'all included'
+                              : <><span className="uru-num">{includedCount}</span> included, <span className="uru-num">{layer.traits.length - includedCount}</span> excluded</>}
+                          </span>
+                        </summary>
+                        <div className="template-trait-subset-actions">
+                          <button
+                            type="button"
+                            className="uru-btn"
+                            disabled={allIncluded}
+                            onClick={() => setLayerTraitsInTemplate(layer, true)}
+                          >
+                            Include all
+                          </button>
+                          <button
+                            type="button"
+                            className="uru-btn"
+                            disabled={includedCount === 0}
+                            onClick={() => setLayerTraitsInTemplate(layer, false)}
+                          >
+                            Exclude all
+                          </button>
+                        </div>
+                        <ul className="template-trait-subset-list">
+                          {layer.traits.map((trait) => {
+                            const excluded = excludedSet.has(trait.relativePath);
+                            return (
+                              <li className="template-trait-subset-item" key={trait.relativePath}>
+                                <label>
+                                  <input
+                                    type="checkbox"
+                                    checked={!excluded}
+                                    onChange={(event) => toggleTraitInTemplate(trait.relativePath, event.target.checked)}
+                                  />
+                                  {library ? (
+                                    <img alt={trait.name} className="template-trait-subset-thumb" src={buildAssetUrl(library.rootDir, trait)} />
+                                  ) : null}
+                                  <span>{trait.name}</span>
+                                </label>
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      </details>
+                    ) : null}
+                  </li>
+                );
+              })}
+            </ul>
           </div>
         )}
 
         {orderedLayers.length > 0 ? (
-          <div className="rules-card">
+          <div className="uru-shell-inner rules-card">
             <div className="panel-header compact-panel-header">
-              <h3>Trait pairs</h3>
-              <p>Bidirectional. When trait A is rolled, force trait B's layer to B. Useful for matching tail/hair colorways.</p>
+              <h3 className="uru-h2" style={{ fontSize: 16 }}>Trait pairs</h3>
+              <p style={{ margin: '4px 0 0', color: 'var(--anchor-soft)', fontFamily: 'var(--font-round), Klee One, cursive', fontSize: 13 }}>Bidirectional. When trait A is rolled, force trait B's layer to B. Useful for matching tail/hair colorways.</p>
             </div>
             <div className="trait-pair-add">
-              <select value={pairDraftA} onChange={(event) => setPairDraftA(event.target.value)}>
+              <select className="uru-input" value={pairDraftA} onChange={(event) => setPairDraftA(event.target.value)}>
                 <option value="">— pick trait A —</option>
                 {orderedLayers.map((layer) => (
                   <optgroup key={layer.id} label={layer.name}>
@@ -1594,7 +1718,7 @@ export function ArtGeneratorStudio() {
                 ))}
               </select>
               <span className="pair-arrow">↔</span>
-              <select value={pairDraftB} onChange={(event) => setPairDraftB(event.target.value)}>
+              <select className="uru-input" value={pairDraftB} onChange={(event) => setPairDraftB(event.target.value)}>
                 <option value="">— pick trait B —</option>
                 {orderedLayers.map((layer) => (
                   <optgroup key={layer.id} label={layer.name}>
@@ -1606,7 +1730,7 @@ export function ArtGeneratorStudio() {
               </select>
               <button
                 type="button"
-                className="primary-button small-button"
+                className="uru-btn uru-btn-primary"
                 disabled={!pairDraftA || !pairDraftB || pairDraftA === pairDraftB}
                 onClick={() => {
                   addTraitPair(pairDraftA, pairDraftB);
@@ -1617,11 +1741,11 @@ export function ArtGeneratorStudio() {
                 Add pair
               </button>
             </div>
-            {templates.traitPairs.length === 0 ? (
-              <p className="empty-state">No pairs yet.</p>
+            {rules.traitPairs.length === 0 ? (
+              <div className="uru-bubble empty-state">No pairs yet.</div>
             ) : (
               <ul className="trait-pair-list">
-                {templates.traitPairs.map((pair, index) => {
+                {rules.traitPairs.map((pair, index) => {
                   const aLayer = orderedLayers.find((layer) => layer.traits.some((t) => t.relativePath === pair.a));
                   const aTrait = aLayer?.traits.find((t) => t.relativePath === pair.a) ?? null;
                   const bLayer = orderedLayers.find((layer) => layer.traits.some((t) => t.relativePath === pair.b));
@@ -1632,7 +1756,7 @@ export function ArtGeneratorStudio() {
                         {library && aTrait ? <img alt={aTrait.name} src={buildAssetUrl(library.rootDir, aTrait)} className="trait-pair-thumb" /> : null}
                         <div>
                           <strong>{aTrait?.name ?? pair.a}</strong>
-                          <span className="preset-meta">{aLayer?.name ?? '?'}</span>
+                          <span className="uru-eyebrow preset-meta">{aLayer?.name ?? '?'}</span>
                         </div>
                       </div>
                       <span className="pair-arrow">↔</span>
@@ -1640,12 +1764,12 @@ export function ArtGeneratorStudio() {
                         {library && bTrait ? <img alt={bTrait.name} src={buildAssetUrl(library.rootDir, bTrait)} className="trait-pair-thumb" /> : null}
                         <div>
                           <strong>{bTrait?.name ?? pair.b}</strong>
-                          <span className="preset-meta">{bLayer?.name ?? '?'}</span>
+                          <span className="uru-eyebrow preset-meta">{bLayer?.name ?? '?'}</span>
                         </div>
                       </div>
                       <button
                         type="button"
-                        className="secondary-button small-button danger-button"
+                        className="uru-btn uru-btn-danger danger-button"
                         onClick={() => removeTraitPair(index)}
                       >
                         Remove
@@ -1659,18 +1783,18 @@ export function ArtGeneratorStudio() {
         ) : null}
 
         {orderedLayers.length > 0 ? (
-          <div className="rules-card">
+          <div className="uru-shell-inner rules-card">
             <div className="panel-header compact-panel-header">
-              <h3>Global layer exclusions</h3>
-              <p>Applies to both templates. Use the per-layer template controls above when a skip should only affect {TEMPLATE_LABELS.templateA} or {TEMPLATE_LABELS.templateB}.</p>
+              <h3 className="uru-h2" style={{ fontSize: 16 }}>Global layer exclusions</h3>
+              <p style={{ margin: '4px 0 0', color: 'var(--anchor-soft)', fontFamily: 'var(--font-round), Klee One, cursive', fontSize: 13 }}>Extra layer skip rules that apply whenever the source layer rolls. Use the per-layer &quot;Skips when present&quot; control above for scoped skips.</p>
             </div>
             <div className="layer-exclusion-add">
               <label className="field-group">
                 <span>Source layer</span>
-                <select value={exclusionDraftSource} onChange={(event) => setExclusionDraftSource(event.target.value)}>
+                <select className="uru-input" value={exclusionDraftSource} onChange={(event) => setExclusionDraftSource(event.target.value)}>
                   <option value="">— pick a layer —</option>
                   {orderedLayers
-                    .filter((layer) => !templates.layerExclusions.some((rule) => rule.sourceLayerId === layer.id))
+                    .filter((layer) => !rules.layerExclusions.some((rule) => rule.sourceLayerId === layer.id))
                     .map((layer) => (
                       <option key={layer.id} value={layer.id}>{layer.name}</option>
                     ))}
@@ -1678,7 +1802,7 @@ export function ArtGeneratorStudio() {
               </label>
               <button
                 type="button"
-                className="primary-button small-button"
+                className="uru-btn uru-btn-primary"
                 disabled={!exclusionDraftSource}
                 onClick={() => {
                   addLayerExclusion(exclusionDraftSource);
@@ -1688,11 +1812,11 @@ export function ArtGeneratorStudio() {
                 Add rule
               </button>
             </div>
-            {templates.layerExclusions.length === 0 ? (
-              <p className="empty-state">No exclusion rules yet.</p>
+            {rules.layerExclusions.length === 0 ? (
+              <div className="uru-bubble empty-state">No exclusion rules yet.</div>
             ) : (
               <ul className="layer-exclusion-list">
-                {templates.layerExclusions.map((rule) => {
+                {rules.layerExclusions.map((rule) => {
                   const sourceLayer = orderedLayers.find((layer) => layer.id === rule.sourceLayerId);
                   const excludedSet = new Set(rule.excludeLayerIds);
                   return (
@@ -1701,7 +1825,7 @@ export function ArtGeneratorStudio() {
                         <strong>When {sourceLayer?.name ?? rule.sourceLayerId} rolls →</strong>
                         <button
                           type="button"
-                          className="secondary-button small-button danger-button"
+                          className="uru-btn uru-btn-danger danger-button"
                           onClick={() => removeLayerExclusion(rule.sourceLayerId)}
                         >
                           Remove
@@ -1713,7 +1837,11 @@ export function ArtGeneratorStudio() {
                           .map((layer) => {
                             const checked = excludedSet.has(layer.id);
                             return (
-                              <label key={layer.id} className={`layer-exclusion-pill${checked ? ' layer-exclusion-pill-active' : ''}`}>
+                              <label
+                                key={layer.id}
+                                className={`uru-chip layer-exclusion-pill${checked ? ' layer-exclusion-pill-active' : ''}`}
+                                data-active={checked ? 'true' : undefined}
+                              >
                                 <input
                                   type="checkbox"
                                   checked={checked}
@@ -1737,15 +1865,16 @@ export function ArtGeneratorStudio() {
           </div>
         ) : null}
 
-        <div className="stats-card">
+        <div className="uru-shell-inner stats-card">
           <div className="stats-card-head">
-            <h3>Collection stats</h3>
-            <p className="preset-meta">Capacity is the deterministic upper bound (product of viable traits per non-Never layer). Simulation runs the actual weighted roll to estimate how many uniques you'll get under your rarity setup.</p>
+            <h3 className="uru-h2" style={{ fontSize: 16 }}>Collection stats</h3>
+            <p className="uru-eyebrow preset-meta">Capacity is the deterministic upper bound (product of viable traits per non-Never layer). Simulation runs the actual weighted roll to estimate how many uniques you'll get under your rarity setup.</p>
           </div>
           <div className="stats-controls">
             <label className="field-group">
               <span>Target collection size</span>
               <input
+                className="uru-input"
                 type="number"
                 min={1}
                 max={1000000}
@@ -1758,7 +1887,7 @@ export function ArtGeneratorStudio() {
               />
             </label>
             <button
-              className="primary-button"
+              className="uru-btn uru-btn-primary"
               type="button"
               disabled={simulationRunning || orderedLayers.length === 0}
               onClick={runSimulation}
@@ -1769,24 +1898,21 @@ export function ArtGeneratorStudio() {
 
           <div className="stats-grid">
             <div className={`stats-readout${capacities.total < targetCollectionSize ? ' stats-readout-warn' : ''}`}>
-              <span className="stats-label">Capacity</span>
-              <strong>{capacities.total.toLocaleString()}</strong>
-              <span className="preset-meta">
-                {TEMPLATE_LABELS.templateA} {capacities.templateA.toLocaleString()} · {TEMPLATE_LABELS.templateB} {capacities.templateB.toLocaleString()}
-              </span>
+              <span className="uru-eyebrow stats-label">Capacity</span>
+              <strong className="uru-num">{capacities.total.toLocaleString()}</strong>
               {capacities.total < targetCollectionSize ? (
-                <span className="stats-warn-text">Below target ({targetCollectionSize.toLocaleString()}). Add traits or remove Never layers.</span>
+                <span className="stats-warn-text">Below target (<span className="uru-num">{targetCollectionSize.toLocaleString()}</span>). Add traits or remove Never layers.</span>
               ) : null}
             </div>
             {simulationResult ? (
               <div className={`stats-readout${simulationResult.uniqueCount < simulationResult.targetSize ? ' stats-readout-warn' : ''}`}>
-                <span className="stats-label">Simulated unique</span>
-                <strong>{simulationResult.uniqueCount.toLocaleString()} / {simulationResult.targetSize.toLocaleString()}</strong>
-                <span className="preset-meta">
-                  {simulationResult.totalAttempts.toLocaleString()} attempts · {TEMPLATE_LABELS.templateA} {simulationResult.templateCounts.templateA.toLocaleString()} · {TEMPLATE_LABELS.templateB} {simulationResult.templateCounts.templateB.toLocaleString()}
+                <span className="uru-eyebrow stats-label">Simulated unique</span>
+                <strong><span className="uru-num">{simulationResult.uniqueCount.toLocaleString()}</span> / <span className="uru-num">{simulationResult.targetSize.toLocaleString()}</span></strong>
+                <span className="uru-eyebrow preset-meta">
+                  <span className="uru-num">{simulationResult.totalAttempts.toLocaleString()}</span> attempts
                 </span>
                 {simulationResult.missingAlwaysEvents > 0 ? (
-                  <span className="stats-warn-text">{simulationResult.missingAlwaysEvents.toLocaleString()} rolls missed an Always layer (no viable trait).</span>
+                  <span className="stats-warn-text"><span className="uru-num">{simulationResult.missingAlwaysEvents.toLocaleString()}</span> rolls missed an Always layer (no viable trait).</span>
                 ) : null}
                 {simulationResult.uniqueCount < simulationResult.targetSize ? (
                   <span className="stats-warn-text">Couldn't hit target before attempt cap. Either capacity is too low or weights are too skewed.</span>
@@ -1797,7 +1923,7 @@ export function ArtGeneratorStudio() {
 
           {simulationResult ? (
             <div className="stats-trait-list">
-              <h4>Per-trait counts</h4>
+              <h4 className="uru-h2" style={{ fontSize: 15 }}>Per-trait counts</h4>
               {orderedLayers.map((layer) => {
                 const layerStats = simulationResult.traitStats.filter((stat) => stat.layerId === layer.id);
                 if (layerStats.length === 0) return null;
@@ -1806,7 +1932,7 @@ export function ArtGeneratorStudio() {
                   <details className="stats-layer-block" key={layer.id}>
                     <summary>
                       <strong>{layer.name}</strong>
-                      <span className="preset-meta">{sorted.length} trait{sorted.length === 1 ? '' : 's'}</span>
+                      <span className="uru-eyebrow preset-meta"><span className="uru-num">{sorted.length}</span> trait{sorted.length === 1 ? '' : 's'}</span>
                     </summary>
                     <table className="stats-trait-table">
                       <thead>
@@ -1821,9 +1947,9 @@ export function ArtGeneratorStudio() {
                         {sorted.map((stat) => (
                           <tr key={stat.relativePath} className={stat.count === 0 ? 'stats-trait-row-empty' : ''}>
                             <td>{stat.traitName}</td>
-                            <td>{stat.weight}</td>
-                            <td>{stat.count.toLocaleString()}</td>
-                            <td>{simulationResult.uniqueCount > 0 ? ((stat.count / simulationResult.uniqueCount) * 100).toFixed(1) : '0.0'}%</td>
+                            <td className="uru-num">{stat.weight}</td>
+                            <td className="uru-num">{stat.count.toLocaleString()}</td>
+                            <td className="uru-num">{simulationResult.uniqueCount > 0 ? ((stat.count / simulationResult.uniqueCount) * 100).toFixed(1) : '0.0'}%</td>
                           </tr>
                         ))}
                       </tbody>
@@ -1837,15 +1963,18 @@ export function ArtGeneratorStudio() {
       </section>
       ) : null}
 
-      <section className="panel collection-preview-panel">
+      <section className="uru-shell panel collection-preview-panel">
           <div className="panel-header compact-panel-header">
-            <h2>Collection preview ({gallerySeeds.length})</h2>
-            <p>Pure-random rolls across the active layers. Each tile gets a random effect preset (uniform). Toggle Effects to compare with the raw composite.</p>
+            <h2 className="uru-h2">Random rolls preview (<span className="uru-num">{gallerySeeds.length}</span>)</h2>
+            <p style={{ margin: '4px 0 0', color: 'var(--anchor-soft)', fontFamily: 'var(--font-round), Klee One, cursive', fontSize: 13 }}>
+              <strong>Design-time only.</strong> Random rolls using your current weights and rules — for sanity-checking rarity balance. These are <em>not</em> your final collection. Hit Generate below to render the real tokens.
+            </p>
           </div>
           <div className="gallery-toolbar">
             <label className="field-group">
               <span>Tile count</span>
               <select
+                className="uru-input"
                 value={galleryTileCount}
                 onChange={(event) => {
                   const next = Number(event.target.value);
@@ -1860,7 +1989,7 @@ export function ArtGeneratorStudio() {
             </label>
             <label className="field-group">
               <span>Tile size</span>
-              <select value={galleryTileSize} onChange={(event) => setGalleryTileSize(event.target.value as GalleryTileSize)}>
+              <select className="uru-input" value={galleryTileSize} onChange={(event) => setGalleryTileSize(event.target.value as GalleryTileSize)}>
                 <option value="s">Small</option>
                 <option value="m">Medium</option>
                 <option value="l">Large</option>
@@ -1868,21 +1997,21 @@ export function ArtGeneratorStudio() {
               </select>
             </label>
             <button
-              className={`secondary-button${galleryEffectsEnabled ? ' active-reference-chip' : ''}`}
+              className={`uru-btn${galleryEffectsEnabled ? ' uru-btn-mint' : ''}`}
               type="button"
               onClick={() => setGalleryEffectsEnabled((current) => !current)}
               title="Toggle the random per-NFT effect preset on the collection preview"
             >
               {galleryEffectsEnabled ? 'Effects on' : 'Effects off'}
             </button>
-            <button className="primary-button" type="button" onClick={() => rerollGallery()} disabled={!library}>
+            <button className="uru-btn uru-btn-primary" type="button" onClick={() => rerollGallery()} disabled={!library}>
               Reroll
             </button>
           </div>
           {!library ? (
-            <p className="empty-state">Load a root directory to preview a randomized collection.</p>
+            <div className="uru-bubble empty-state">Load a root directory to preview a randomized collection.</div>
           ) : gallerySeeds.length === 0 ? (
-            <p className="empty-state">Click Reroll to generate {galleryTileCount} random combinations.</p>
+            <div className="uru-bubble empty-state">Click Reroll to generate <span className="uru-num">{galleryTileCount}</span> random combinations.</div>
           ) : (
             <div className={`gallery-grid gallery-grid-${galleryTileSize}`}>
               {gallerySeeds.map((seed, index) => {
@@ -1894,9 +2023,10 @@ export function ArtGeneratorStudio() {
                   : null;
                 return (
                   <button
-                    className={`gallery-tile gallery-tile-button${activeGalleryTileIndex === index ? ' gallery-tile-active' : ''}`}
+                    className={`uru-polaroid gallery-tile gallery-tile-button${activeGalleryTileIndex === index ? ' gallery-tile-active' : ''}`}
                     key={index}
                     type="button"
+                    data-active={activeGalleryTileIndex === index ? 'true' : undefined}
                     onClick={() => loadGalleryTileSelection(seed, index)}
                     aria-label={`Load NFT ${index + 1} traits into preview`}
                     aria-pressed={activeGalleryTileIndex === index}
@@ -1909,10 +2039,9 @@ export function ArtGeneratorStudio() {
                       buildAssetUrl={buildAssetUrl}
                       size={galleryCanvasSize}
                     />
-                    <span className="gallery-tile-index">#{index + 1}</span>
-                    <span className={`gallery-tile-template-badge gallery-tile-template-${seed.kind}`}>{TEMPLATE_LABELS[seed.kind]}</span>
+                    <span className="uru-stamp uru-stamp-cream gallery-tile-index">#<span className="uru-num">{index + 1}</span></span>
                     {galleryEffectsEnabled && presetLabel ? (
-                      <span className="gallery-tile-preset-badge">{presetLabel}</span>
+                      <span className="uru-stamp uru-stamp-pink gallery-tile-preset-badge">{presetLabel}</span>
                     ) : null}
                   </button>
                 );
@@ -1921,25 +2050,94 @@ export function ArtGeneratorStudio() {
           )}
         </section>
 
-      <nav className="studio-tabs">
+      <CollectionGenerator
+        library={library}
+        rules={rules}
+        weights={traitWeights}
+        targetCollectionSize={targetCollectionSize}
+        onTargetChange={setTargetCollectionSize}
+      />
+
+      <CollectionBrowser library={library} rules={rules} weights={traitWeights} />
+
+      <IpfsPushPanel outputCount={outputCount} />
+
+      <nav className="studio-tabs" style={{ display: 'flex', flexWrap: 'wrap', gap: 8, justifyContent: 'center', marginTop: 8 }}>
         {([
           { id: 'library', label: 'Library manager', count: null },
-          { id: 'templates', label: 'Templates', count: null },
+          { id: 'templates', label: 'Rules', count: null },
         ] as const).map((tab) => {
           const isActive = activeTab === tab.id;
           return (
             <button
               key={tab.id}
               type="button"
-              className={`studio-tab${isActive ? ' studio-tab-active' : ''}`}
+              className={`uru-chip studio-tab${isActive ? ' studio-tab-active' : ''}`}
+              data-active={isActive ? 'true' : undefined}
               onClick={() => setActiveTab((current) => (current === tab.id ? null : tab.id))}
             >
               {tab.label}
-              {tab.count !== null && tab.count > 0 ? <span className="studio-tab-count">{tab.count}</span> : null}
+              {tab.count !== null && tab.count > 0 ? <span className="uru-num studio-tab-count">{tab.count}</span> : null}
             </button>
           );
         })}
       </nav>
+
+      {pendingDelete ? (
+        <div
+          role="dialog"
+          aria-modal="true"
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(58,44,58,0.55)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: 24,
+            zIndex: 100,
+          }}
+          onClick={() => setPendingDelete(null)}
+        >
+          <div
+            className="uru-shell"
+            style={{ maxWidth: 520, width: '100%' }}
+            onClick={(event) => event.stopPropagation()}
+          >
+            <h3 className="uru-h2" style={{ margin: 0 }}>
+              Delete {pendingDelete.kind} “{pendingDelete.label}”?
+            </h3>
+            <ul className="uru-list-flower" style={{ marginTop: 12 }}>
+              {pendingDelete.impactSummary.map((line, index) => (
+                <li key={index}>{line}</li>
+              ))}
+            </ul>
+            <p className="uru-eyebrow" style={{ marginTop: 12 }}>
+              Deleting cascades: OPFS blobs removed, rules cleaned up. Cannot undo.
+            </p>
+            <div style={{ display: 'flex', gap: 10, marginTop: 14, flexWrap: 'wrap' }}>
+              <button
+                type="button"
+                className="uru-btn uru-btn-danger"
+                onClick={async () => {
+                  const action = pendingDelete.confirm;
+                  setPendingDelete(null);
+                  await action();
+                }}
+              >
+                Delete anyway
+              </button>
+              <button
+                type="button"
+                className="uru-btn uru-btn-cream"
+                onClick={() => setPendingDelete(null)}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
     </main>
   );

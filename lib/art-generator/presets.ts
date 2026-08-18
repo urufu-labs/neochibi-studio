@@ -1,5 +1,5 @@
 import { normalizePreviewEffects, type PreviewEffect } from './canvas-filters';
-import { DEFAULT_LAYER_CHANCE_PERCENT, DEFAULT_TEMPLATES, normalizeCollectionTemplates, type CollectionTemplates } from './rules';
+import { DEFAULT_LAYER_CHANCE_PERCENT, DEFAULT_RULES, normalizeCollectionRules, type CollectionRules } from './rules';
 import type { TraitLibrary } from './types';
 
 export interface SavedGeneratorConfig {
@@ -9,7 +9,7 @@ export interface SavedGeneratorConfig {
   layerOrder: string[];
   selectedTraits: Record<string, string>;
   effects: PreviewEffect[];
-  templates: CollectionTemplates;
+  rules: CollectionRules;
   updatedAt: string;
 }
 
@@ -20,7 +20,7 @@ interface CreateSavedConfigInput {
   layerOrder: string[];
   selectedTraits: Record<string, string>;
   effects?: PreviewEffect[];
-  templates?: CollectionTemplates;
+  rules?: CollectionRules;
   updatedAt?: string;
 }
 
@@ -36,7 +36,7 @@ export function createSavedConfig({
   layerOrder,
   selectedTraits,
   effects,
-  templates,
+  rules,
   updatedAt,
 }: CreateSavedConfigInput): SavedGeneratorConfig {
   return {
@@ -46,7 +46,7 @@ export function createSavedConfig({
     layerOrder: [...layerOrder],
     selectedTraits: { ...selectedTraits },
     effects: normalizePreviewEffects(effects ?? []),
-    templates: normalizeCollectionTemplates(templates ?? DEFAULT_TEMPLATES),
+    rules: normalizeCollectionRules(rules ?? DEFAULT_RULES),
     updatedAt: updatedAt ?? new Date().toISOString(),
   };
 }
@@ -56,7 +56,7 @@ export function parseSavedConfig(input: unknown): SavedGeneratorConfig {
     throw new Error('Saved config must be a JSON object.');
   }
 
-  const candidate = input as Partial<SavedGeneratorConfig>;
+  const candidate = input as Partial<SavedGeneratorConfig> & { templates?: unknown };
   const name = String(candidate.name ?? '').trim();
   const rootDir = String(candidate.rootDir ?? '').trim();
   const layerOrder = Array.isArray(candidate.layerOrder) ? candidate.layerOrder.map(String) : [];
@@ -71,18 +71,17 @@ export function parseSavedConfig(input: unknown): SavedGeneratorConfig {
     throw new Error('Saved config name is required.');
   }
 
-  if (!rootDir) {
-    throw new Error('Saved config rootDir is required.');
-  }
+  // Accept new `rules` shape or legacy `templates` shape; normalize() unwraps A/B.
+  const rulesSource = candidate.rules !== undefined ? candidate.rules : candidate.templates;
 
   return createSavedConfig({
     id: candidate.id,
     name,
-    rootDir,
+    rootDir: rootDir || 'opfs:project',
     layerOrder,
     selectedTraits,
     effects: normalizePreviewEffects((candidate as { effects?: unknown }).effects),
-    templates: normalizeCollectionTemplates((candidate as { templates?: unknown }).templates),
+    rules: normalizeCollectionRules(rulesSource),
     updatedAt: candidate.updatedAt ? String(candidate.updatedAt) : undefined,
   });
 }
@@ -103,43 +102,29 @@ export function hydrateSavedConfig(config: SavedGeneratorConfig, library: TraitL
     return acc;
   }, {});
 
-  const templates = normalizeCollectionTemplates(config.templates);
+  const rules = normalizeCollectionRules(config.rules);
   const validTraitPaths = new Set<string>();
   for (const layer of library.layers) {
     for (const trait of layer.traits) validTraitPaths.add(trait.relativePath);
   }
   const filterLayerIds = (ids: string[]) => ids.filter((id) => validLayerIds.has(id));
   const filterTraitPaths = (paths: string[]) => paths.filter((p) => validTraitPaths.has(p));
-  const filterARules = (templates.templateA.layerRules ?? []).map((rule) => ({
+  const filteredLayerRules = (rules.template.layerRules ?? []).map((rule) => ({
     layerId: rule.layerId,
     chancePercent: rule.chancePercent,
     excludeLayerIds: filterLayerIds(rule.excludeLayerIds),
   }));
-  const filterBRules = (templates.templateB.layerRules ?? []).map((rule) => ({
-    layerId: rule.layerId,
-    chancePercent: rule.chancePercent,
-    excludeLayerIds: filterLayerIds(rule.excludeLayerIds),
-  }));
-  const filteredTemplates: CollectionTemplates = {
-    templateA: {
-      alwaysLayerIds: filterLayerIds(templates.templateA.alwaysLayerIds),
-      neverLayerIds: filterLayerIds(templates.templateA.neverLayerIds),
-      excludedTraitPaths: filterTraitPaths(templates.templateA.excludedTraitPaths),
-      layerRules: filterARules.filter(
+  const filteredRules: CollectionRules = {
+    template: {
+      alwaysLayerIds: filterLayerIds(rules.template.alwaysLayerIds),
+      neverLayerIds: filterLayerIds(rules.template.neverLayerIds),
+      excludedTraitPaths: filterTraitPaths(rules.template.excludedTraitPaths),
+      layerRules: filteredLayerRules.filter(
         (rule) => validLayerIds.has(rule.layerId) && (rule.chancePercent !== DEFAULT_LAYER_CHANCE_PERCENT || rule.excludeLayerIds.length > 0),
       ),
     },
-    templateB: {
-      alwaysLayerIds: filterLayerIds(templates.templateB.alwaysLayerIds),
-      neverLayerIds: filterLayerIds(templates.templateB.neverLayerIds),
-      excludedTraitPaths: filterTraitPaths(templates.templateB.excludedTraitPaths),
-      layerRules: filterBRules.filter(
-        (rule) => validLayerIds.has(rule.layerId) && (rule.chancePercent !== DEFAULT_LAYER_CHANCE_PERCENT || rule.excludeLayerIds.length > 0),
-      ),
-    },
-    templateAWeight: templates.templateAWeight,
-    traitPairs: templates.traitPairs.filter((p) => validTraitPaths.has(p.a) && validTraitPaths.has(p.b)),
-    layerExclusions: templates.layerExclusions
+    traitPairs: rules.traitPairs.filter((p) => validTraitPaths.has(p.a) && validTraitPaths.has(p.b)),
+    layerExclusions: rules.layerExclusions
       .map((rule) => ({
         sourceLayerId: rule.sourceLayerId,
         excludeLayerIds: filterLayerIds(rule.excludeLayerIds),
@@ -152,6 +137,6 @@ export function hydrateSavedConfig(config: SavedGeneratorConfig, library: TraitL
     layerOrder,
     selectedTraits,
     effects: normalizePreviewEffects(config.effects),
-    templates: filteredTemplates,
+    rules: filteredRules,
   };
 }

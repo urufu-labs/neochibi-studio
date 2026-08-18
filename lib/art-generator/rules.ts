@@ -1,8 +1,6 @@
 import type { TraitAsset, TraitLayer } from './types';
 import { DEFAULT_TRAIT_WEIGHT, type TraitWeights } from './weights';
 
-export type TemplateKind = 'templateA' | 'templateB';
-export const TEMPLATE_KINDS: TemplateKind[] = ['templateA', 'templateB'];
 export const DEFAULT_LAYER_CHANCE_PERCENT = 100;
 
 export interface TemplateLayerRule {
@@ -28,37 +26,42 @@ export interface LayerExclusion {
   excludeLayerIds: string[];
 }
 
-export interface CollectionTemplates {
-  templateA: CollectionTemplate;
-  templateB: CollectionTemplate;
-  templateAWeight: number;
+export interface CollectionRules {
+  template: CollectionTemplate;
   traitPairs: TraitPair[];
   layerExclusions: LayerExclusion[];
 }
 
-export const DEFAULT_TEMPLATES: CollectionTemplates = {
-  templateA: { alwaysLayerIds: [], neverLayerIds: [], excludedTraitPaths: [], layerRules: [] },
-  templateB: { alwaysLayerIds: [], neverLayerIds: [], excludedTraitPaths: [], layerRules: [] },
-  templateAWeight: 50,
+export const DEFAULT_RULES: CollectionRules = {
+  template: { alwaysLayerIds: [], neverLayerIds: [], excludedTraitPaths: [], layerRules: [] },
   traitPairs: [],
   layerExclusions: [],
 };
 
-export function normalizeCollectionTemplates(input: unknown): CollectionTemplates {
+export function normalizeCollectionRules(input: unknown): CollectionRules {
   if (!input || typeof input !== 'object') {
     return {
-      templateA: normalizeTemplate(DEFAULT_TEMPLATES.templateA),
-      templateB: normalizeTemplate(DEFAULT_TEMPLATES.templateB),
-      templateAWeight: DEFAULT_TEMPLATES.templateAWeight,
+      template: normalizeTemplate(DEFAULT_RULES.template),
       traitPairs: [],
       layerExclusions: [],
     };
   }
-  const candidate = input as Partial<CollectionTemplates>;
+  const candidate = input as Partial<CollectionRules> & {
+    // Legacy A/B fields kept for one-way migration off disk.
+    templateA?: unknown;
+    templateB?: unknown;
+    templateAWeight?: unknown;
+  };
+  const template =
+    candidate.template !== undefined
+      ? normalizeTemplate(candidate.template)
+      : candidate.templateA !== undefined
+        ? normalizeTemplate(candidate.templateA)
+        : candidate.templateB !== undefined
+          ? normalizeTemplate(candidate.templateB)
+          : normalizeTemplate(DEFAULT_RULES.template);
   return {
-    templateA: normalizeTemplate(candidate.templateA),
-    templateB: normalizeTemplate(candidate.templateB),
-    templateAWeight: clampWeight(candidate.templateAWeight),
+    template,
     traitPairs: normalizeTraitPairs(candidate.traitPairs),
     layerExclusions: normalizeLayerExclusions(candidate.layerExclusions),
   };
@@ -153,17 +156,8 @@ function clampPercent(value: unknown, fallback: number): number {
   return Math.max(0, Math.min(100, Math.round(resolved)));
 }
 
-function clampWeight(value: unknown): number {
-  const num = typeof value === 'number' && Number.isFinite(value) ? value : 50;
-  return Math.max(0, Math.min(100, Math.round(num)));
-}
-
 function shouldKeepLayerRule(rule: TemplateLayerRule): boolean {
   return rule.chancePercent !== DEFAULT_LAYER_CHANCE_PERCENT || rule.excludeLayerIds.length > 0;
-}
-
-export function pickTemplateKind(templateAWeight: number, rng: () => number = Math.random): TemplateKind {
-  return rng() * 100 < templateAWeight ? 'templateA' : 'templateB';
 }
 
 export interface RollFromTemplateResult {
@@ -346,7 +340,6 @@ export interface SimulationResult {
   targetSize: number;
   totalAttempts: number;
   uniqueCount: number;
-  templateCounts: Record<TemplateKind, number>;
   traitStats: SimulationTraitStat[];
   missingAlwaysEvents: number;
 }
@@ -354,7 +347,7 @@ export interface SimulationResult {
 interface SimulateCollectionInput {
   layers: TraitLayer[];
   layerOrder: string[];
-  templates: CollectionTemplates;
+  rules: CollectionRules;
   weights?: TraitWeights;
   targetSize: number;
   attemptsMultiplier?: number;
@@ -364,7 +357,7 @@ interface SimulateCollectionInput {
 export function simulateCollection({
   layers,
   layerOrder,
-  templates,
+  rules,
   weights = {},
   targetSize,
   attemptsMultiplier = 1.5,
@@ -374,25 +367,22 @@ export function simulateCollection({
   const cap = Math.max(target * 2, Math.ceil(target * attemptsMultiplier));
   const orderedLayerIds = layerOrder.length > 0 ? layerOrder : layers.map((layer) => layer.id);
   const fingerprints = new Set<string>();
-  const templateCounts: Record<TemplateKind, number> = { templateA: 0, templateB: 0 };
   const traitCounts = new Map<string, number>();
   let missingAlwaysEvents = 0;
   let attempts = 0;
 
   const rollOptions: RollOptions = {
-    traitPairs: templates.traitPairs ?? [],
-    layerExclusions: templates.layerExclusions ?? [],
+    traitPairs: rules.traitPairs ?? [],
+    layerExclusions: rules.layerExclusions ?? [],
   };
 
   while (fingerprints.size < target && attempts < cap) {
     attempts += 1;
-    const kind = pickTemplateKind(templates.templateAWeight, rng);
-    const { selection, missingAlways } = rollFromTemplate(layers, templates[kind], weights, rng, rollOptions);
+    const { selection, missingAlways } = rollFromTemplate(layers, rules.template, weights, rng, rollOptions);
     if (missingAlways.length > 0) missingAlwaysEvents += 1;
-    const fingerprint = `${kind}|${buildFingerprint(orderedLayerIds, selection)}`;
+    const fingerprint = buildFingerprint(orderedLayerIds, selection);
     if (fingerprints.has(fingerprint)) continue;
     fingerprints.add(fingerprint);
-    templateCounts[kind] += 1;
     for (const traitId of Object.values(selection)) {
       traitCounts.set(traitId, (traitCounts.get(traitId) ?? 0) + 1);
     }
@@ -418,7 +408,6 @@ export function simulateCollection({
     targetSize: target,
     totalAttempts: attempts,
     uniqueCount: fingerprints.size,
-    templateCounts,
     traitStats,
     missingAlwaysEvents,
   };

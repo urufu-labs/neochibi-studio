@@ -11,7 +11,7 @@ export function buildExportFileName(name: string): string {
     .replace(/^-+|-+$/g, '')
     .replace(/-{2,}/g, '-');
 
-  return `${normalized || 'neochibi-export'}.png`;
+  return `${normalized || 'urufulabs-export'}.png`;
 }
 
 export function buildExportSummary(items: ExportSummaryItem[]): string[] {

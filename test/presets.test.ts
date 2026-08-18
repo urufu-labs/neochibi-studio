@@ -69,10 +69,8 @@ test('hydrateSavedConfig drops layers and traits that no longer exist', () => {
       body: 'body-cream',
     },
     effects: [],
-    templates: {
-      templateA: { alwaysLayerIds: [], neverLayerIds: [], excludedTraitPaths: [] },
-      templateB: { alwaysLayerIds: [], neverLayerIds: [], excludedTraitPaths: [] },
-      templateAWeight: 50,
+    rules: {
+      template: { alwaysLayerIds: [], neverLayerIds: [], excludedTraitPaths: [] },
       traitPairs: [],
       layerExclusions: [],
     },

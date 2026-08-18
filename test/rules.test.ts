@@ -2,11 +2,10 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
-  DEFAULT_TEMPLATES,
+  DEFAULT_RULES,
   getTemplateLayerRule,
   getLayerTemplateState,
-  normalizeCollectionTemplates,
-  pickTemplateKind,
+  normalizeCollectionRules,
   pickWeightedTrait,
   rollFromTemplate,
   setLayerTemplateState,
@@ -142,13 +141,6 @@ test('rollFromTemplate applies template-scoped layer skips only when the source 
   assert.equal(hit.selection.body, undefined);
 });
 
-test('pickTemplateKind respects templateAWeight bounds', () => {
-  assert.equal(pickTemplateKind(100, () => 0.5), 'templateA');
-  assert.equal(pickTemplateKind(0, () => 0.5), 'templateB');
-  assert.equal(pickTemplateKind(50, () => 0.49), 'templateA');
-  assert.equal(pickTemplateKind(50, () => 0.51), 'templateB');
-});
-
 test('setLayerTemplateState toggles between always/never/optional', () => {
   let template: { alwaysLayerIds: string[]; neverLayerIds: string[]; excludedTraitPaths: string[] } = {
     alwaysLayerIds: [],
@@ -265,62 +257,91 @@ test('templateCapacity counts absent states for chance-based optional layers', (
 });
 
 test('simulateCollection hits target uniques when capacity is sufficient', () => {
-  // capacity = 4 (sheep) + 4 (wolves but rolled separately by template kind, fingerprints prefixed)
-  const templates = {
-    templateA: { alwaysLayerIds: [], neverLayerIds: [], excludedTraitPaths: [] },
-    templateB: { alwaysLayerIds: [], neverLayerIds: [], excludedTraitPaths: [] },
-    templateAWeight: 50,
+  const rules = {
+    template: { alwaysLayerIds: [], neverLayerIds: [], excludedTraitPaths: [] },
     traitPairs: [],
     layerExclusions: [],
   };
   const result = simulateCollection({
     layers: sampleLayers,
     layerOrder: ['background', 'body', 'hat'],
-    templates,
-    targetSize: 6,
+    rules,
+    targetSize: 4,
     attemptsMultiplier: 50,
   });
-  assert.ok(result.uniqueCount >= 6, `expected at least 6 uniques, got ${result.uniqueCount}`);
-  assert.equal(result.targetSize, 6);
-  assert.ok(result.totalAttempts >= 6);
+  assert.ok(result.uniqueCount >= 4, `expected at least 4 uniques, got ${result.uniqueCount}`);
+  assert.equal(result.targetSize, 4);
+  assert.ok(result.totalAttempts >= 4);
 });
 
 test('simulateCollection caps attempts when target is unreachable', () => {
-  const templates = {
-    templateA: { alwaysLayerIds: [], neverLayerIds: ['background', 'body', 'hat'], excludedTraitPaths: [] },
-    templateB: { alwaysLayerIds: [], neverLayerIds: ['background', 'body', 'hat'], excludedTraitPaths: [] },
-    templateAWeight: 50,
+  const rules = {
+    template: { alwaysLayerIds: [], neverLayerIds: ['background', 'body', 'hat'], excludedTraitPaths: [] },
     traitPairs: [],
     layerExclusions: [],
   };
   const result = simulateCollection({
     layers: sampleLayers,
     layerOrder: ['background', 'body', 'hat'],
-    templates,
+    rules,
     targetSize: 100,
   });
-  // Every roll yields the same empty selection → only 2 unique fingerprints (sheep|... and wolves|...)
-  assert.ok(result.uniqueCount <= 2);
+  // Every roll yields the same empty selection → only 1 unique fingerprint.
+  assert.ok(result.uniqueCount <= 1);
   assert.ok(result.totalAttempts >= 100);
 });
 
-test('normalizeCollectionTemplates falls back to defaults on garbage input', () => {
-  const normalized = normalizeCollectionTemplates(undefined);
-  assert.equal(normalized.templateAWeight, DEFAULT_TEMPLATES.templateAWeight);
-  assert.deepEqual(normalized.templateA, DEFAULT_TEMPLATES.templateA);
-  assert.deepEqual(normalized.templateB, DEFAULT_TEMPLATES.templateB);
+test('normalizeCollectionRules falls back to defaults on garbage input', () => {
+  const normalized = normalizeCollectionRules(undefined);
+  assert.deepEqual(normalized.template, DEFAULT_RULES.template);
   assert.deepEqual(normalized.traitPairs, []);
   assert.deepEqual(normalized.layerExclusions, []);
-
-  const clampedHigh = normalizeCollectionTemplates({ templateAWeight: 999 });
-  assert.equal(clampedHigh.templateAWeight, 100);
-
-  const clampedLow = normalizeCollectionTemplates({ templateAWeight: -42 });
-  assert.equal(clampedLow.templateAWeight, 0);
 });
 
-test('normalizeCollectionTemplates dedupes trait pairs and rejects self-pairs', () => {
-  const normalized = normalizeCollectionTemplates({
+test('normalizeCollectionRules migrates legacy A/B shape by preferring templateA', () => {
+  const legacy = {
+    templateA: {
+      alwaysLayerIds: ['background'],
+      neverLayerIds: [],
+      excludedTraitPaths: ['01 Background/01 Dawn.png'],
+      layerRules: [{ layerId: 'body', chancePercent: 25, excludeLayerIds: [] }],
+    },
+    templateB: {
+      alwaysLayerIds: ['hat'],
+      neverLayerIds: ['background'],
+      excludedTraitPaths: [],
+      layerRules: [],
+    },
+    templateAWeight: 60,
+    traitPairs: [],
+    layerExclusions: [],
+  };
+  const normalized = normalizeCollectionRules(legacy);
+  assert.deepEqual(normalized.template.alwaysLayerIds, ['background']);
+  assert.deepEqual(normalized.template.excludedTraitPaths, ['01 Background/01 Dawn.png']);
+  assert.equal(normalized.template.layerRules?.[0]?.chancePercent, 25);
+  // No templateAWeight leakage.
+  assert.equal((normalized as unknown as { templateAWeight?: unknown }).templateAWeight, undefined);
+});
+
+test('normalizeCollectionRules falls back to templateB when templateA is absent', () => {
+  const legacy = {
+    templateB: {
+      alwaysLayerIds: ['hat'],
+      neverLayerIds: [],
+      excludedTraitPaths: [],
+      layerRules: [],
+    },
+    templateAWeight: 40,
+    traitPairs: [],
+    layerExclusions: [],
+  };
+  const normalized = normalizeCollectionRules(legacy);
+  assert.deepEqual(normalized.template.alwaysLayerIds, ['hat']);
+});
+
+test('normalizeCollectionRules dedupes trait pairs and rejects self-pairs', () => {
+  const normalized = normalizeCollectionRules({
     traitPairs: [
       { a: 'x.png', b: 'y.png' },
       { a: 'y.png', b: 'x.png' },
@@ -332,8 +353,8 @@ test('normalizeCollectionTemplates dedupes trait pairs and rejects self-pairs', 
   assert.deepEqual(normalized.traitPairs[0], { a: 'x.png', b: 'y.png' });
 });
 
-test('normalizeCollectionTemplates merges layer exclusions by source', () => {
-  const normalized = normalizeCollectionTemplates({
+test('normalizeCollectionRules merges layer exclusions by source', () => {
+  const normalized = normalizeCollectionRules({
     layerExclusions: [
       { sourceLayerId: 'hair', excludeLayerIds: ['hat'] },
       { sourceLayerId: 'hair', excludeLayerIds: ['cape', 'hair'] }, // hair is self → drop
@@ -345,9 +366,9 @@ test('normalizeCollectionTemplates merges layer exclusions by source', () => {
   assert.deepEqual(normalized.layerExclusions[0].excludeLayerIds.sort(), ['cape', 'hat']);
 });
 
-test('normalizeCollectionTemplates normalizes template layer rules', () => {
-  const normalized = normalizeCollectionTemplates({
-    templateA: {
+test('normalizeCollectionRules normalizes template layer rules', () => {
+  const normalized = normalizeCollectionRules({
+    template: {
       layerRules: [
         { layerId: 'coat', chancePercent: 10, excludeLayerIds: ['shirt', 'coat'] },
         { layerId: 'coat', chancePercent: 15, excludeLayerIds: ['hat'] },
@@ -356,7 +377,7 @@ test('normalizeCollectionTemplates normalizes template layer rules', () => {
     },
   });
 
-  assert.deepEqual(normalized.templateA.layerRules, [
+  assert.deepEqual(normalized.template.layerRules, [
     { layerId: 'coat', chancePercent: 15, excludeLayerIds: ['shirt', 'hat'] },
   ]);
 });

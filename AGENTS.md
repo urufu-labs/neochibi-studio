@@ -1,15 +1,15 @@
-# AGENTS.md - neochibi-studio
+# AGENTS.md - urufulabs studio (repo: neochibi-studio)
 
 Guidance for AI agents and contributors working in this repo.
 
 ## Mission
 
-neochibi-studio is a local, filesystem-backed trait-composition tool for
-generative-art collections. It is the studio half of a generative pipeline: an
-artist organizes layered PNG traits on disk, the UI previews and composes them,
-and the studio writes back rarity weights and template rules alongside the
-trait library so the same folder can be checked into git as the source of
-truth.
+urufulabs studio is a browser-based generative NFT art tool by urufu labs.
+Users upload trait layers, tune weights and single-ruleset rules, generate up
+to 10,000 unique tokens entirely on-device via a Web Worker + OffscreenCanvas,
+curate the results (reroll / swap / 1-of-1), and publish to IPFS via the
+"Publish to IPFS" panel. The repo folder + npm package name is still
+`neochibi-studio` for continuity; the user-facing product is `urufulabs studio`.
 
 Keep this repo standalone. Do not import code that assumes a parent monorepo,
 wallet/contracts/minting flows, hosted AI generation, or any specific brand or

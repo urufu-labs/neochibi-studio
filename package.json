@@ -11,16 +11,20 @@
     "test": "node --import tsx --test test/*.test.ts"
   },
   "dependencies": {
+    "idb-keyval": "^6.3.0",
     "next": "15.5.16",
     "react": "19.2.6",
-    "react-dom": "19.2.6"
+    "react-dom": "19.2.6",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^8",
     "eslint-config-next": "15.1.0",
+    "tailwindcss": "^4",
     "tsx": "^4.20.6",
     "typescript": "^5"
   }

@@ -44,7 +44,7 @@ function loadImage(src: string): Promise<HTMLImageElement> {
 }
 
 function buildExportFileName(name: string): string {
-  const trimmed = name.trim() || 'neochibi-preview';
+  const trimmed = name.trim() || 'urufulabs-preview';
   return trimmed.toLowerCase().endsWith('.png') ? trimmed : `${trimmed}.png`;
 }
 
@@ -236,12 +236,17 @@ export function PreviewCanvas({
   const activeCount = effects.filter((e) => e.enabled).length;
 
   return (
-    <section className="panel panel-preview">
+    <section className="uru-shell panel panel-preview">
       <div className="panel-header panel-header-preview panel-header-tight">
-        <h2>Preview</h2>
-        <div className="preview-stat-chip">
-          {previewLayers.length > 0 ? `${previewLayers.length} live layers` : 'Stage empty'}
-          {activeCount > 0 ? ` · ${activeCount} fx` : ''}
+        <div>
+          <h2 className="uru-h2" style={{ margin: 0 }}>Single-token preview</h2>
+          <p style={{ margin: '2px 0 0', color: 'var(--anchor-soft)', fontFamily: 'var(--font-round), Klee One, cursive', fontSize: 12 }}>
+            Design-time canvas — shuffle to check layer order &amp; effects. Not part of the final collection.
+          </p>
+        </div>
+        <div className="uru-stamp uru-stamp-cream preview-stat-chip">
+          {previewLayers.length > 0 ? <><span className="uru-num">{previewLayers.length}</span> live layers</> : 'Stage empty'}
+          {activeCount > 0 ? <> · <span className="uru-num">{activeCount}</span> fx</> : ''}
         </div>
       </div>
 
@@ -260,6 +265,7 @@ export function PreviewCanvas({
         <label className="field-group" htmlFor="export-name-input">
           <span>PNG export name</span>
           <input
+            className="uru-input"
             id="export-name-input"
             onChange={(event) => onExportNameChange(event.target.value)}
             placeholder="character-preview"
@@ -268,10 +274,10 @@ export function PreviewCanvas({
           />
         </label>
         <div className="preview-toolbar-actions">
-          <button className="secondary-button small-button" onClick={() => void copyPreview()} type="button" disabled={toolbar.loading || previewLayers.length === 0}>
+          <button className="uru-btn" onClick={() => void copyPreview()} type="button" disabled={toolbar.loading || previewLayers.length === 0}>
             Copy preview
           </button>
-          <button className="primary-button small-button" onClick={() => void exportPreview()} type="button" disabled={toolbar.loading || previewLayers.length === 0}>
+          <button className="uru-btn uru-btn-primary" onClick={() => void exportPreview()} type="button" disabled={toolbar.loading || previewLayers.length === 0}>
             Export PNG
           </button>
         </div>
@@ -279,10 +285,10 @@ export function PreviewCanvas({
 
       <div className="effect-chip-stack">
         <div className="effect-chip-head">
-          <h3>Effects</h3>
+          <h3 className="uru-h2" style={{ fontSize: 16 }}>Effects</h3>
           <div className="effect-chip-head-actions">
-            <span className="effect-chip-count">{activeCount}/{effects.length} on</span>
-            <button className="secondary-button small-button" onClick={resetEffects} type="button" disabled={activeCount === 0}>
+            <span className="uru-eyebrow effect-chip-count"><span className="uru-num">{activeCount}</span>/<span className="uru-num">{effects.length}</span> on</span>
+            <button className="uru-btn" onClick={resetEffects} type="button" disabled={activeCount === 0}>
               Reset effects
             </button>
           </div>
@@ -295,7 +301,7 @@ export function PreviewCanvas({
               <button
                 key={preset.id}
                 type="button"
-                className="effect-preset-chip"
+                className="uru-chip effect-preset-chip"
                 title={preset.description}
                 onClick={() => onEffectsChange(applyPreviewEffectPreset(effects, preset))}
               >
@@ -317,7 +323,7 @@ export function PreviewCanvas({
                   onClick={() => updateEffect(entry.id, { enabled: !entry.enabled })}
                   title={def.description}
                 >
-                  <span className="effect-chip-index">{index + 1}</span>
+                  <span className="uru-num effect-chip-index">{index + 1}</span>
                   <span className="effect-chip-label">{def.label}</span>
                 </button>
                 <div className="effect-chip-order">
@@ -366,9 +372,54 @@ export function PreviewCanvas({
         ) : null}
       </div>
 
-      {renderError ? <p className="error-banner">{renderError}</p> : null}
-      {toolbar.error ? <p className="error-banner">{toolbar.error}</p> : null}
-      {toolbar.success ? <p className="success-banner">{toolbar.success}</p> : null}
+      {renderError ? (
+        <div
+          className="uru-shell-tight error-banner"
+          role="alert"
+          style={{
+            borderColor: 'var(--pink-hot)',
+            background: 'var(--pink-warm)',
+            fontFamily: 'var(--font-pixel), monospace',
+            fontSize: 12,
+            textTransform: 'uppercase',
+            letterSpacing: '0.08em',
+          }}
+        >
+          {renderError}
+        </div>
+      ) : null}
+      {toolbar.error ? (
+        <div
+          className="uru-shell-tight error-banner"
+          role="alert"
+          style={{
+            borderColor: 'var(--pink-hot)',
+            background: 'var(--pink-warm)',
+            fontFamily: 'var(--font-pixel), monospace',
+            fontSize: 12,
+            textTransform: 'uppercase',
+            letterSpacing: '0.08em',
+          }}
+        >
+          {toolbar.error}
+        </div>
+      ) : null}
+      {toolbar.success ? (
+        <div
+          className="uru-shell-tight success-banner"
+          role="status"
+          style={{
+            borderColor: 'var(--mint-hot)',
+            background: 'var(--mint)',
+            fontFamily: 'var(--font-pixel), monospace',
+            fontSize: 12,
+            textTransform: 'uppercase',
+            letterSpacing: '0.08em',
+          }}
+        >
+          {toolbar.success}
+        </div>
+      ) : null}
     </section>
   );
 }
