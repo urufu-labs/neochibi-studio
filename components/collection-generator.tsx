@@ -5,7 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { CollectionRules } from '@/lib/art-generator/rules';
 import type { TraitLibrary } from '@/lib/art-generator/types';
 import type { TraitWeights } from '@/lib/art-generator/weights';
-import { getAssetStore } from '@/lib/storage/asset-store';
+import { getAssetStore, useAssetStoreVersion } from '@/lib/storage/asset-store';
 import type {
   GeneratorOutboundMessage,
   GeneratorStartMessage,
@@ -63,20 +63,31 @@ export function CollectionGenerator({
 }: CollectionGeneratorProps) {
   const workerRef = useRef<Worker | null>(null);
   const [state, setState] = useState<GenState>(INITIAL_STATE);
+  const [collectionName, setCollectionName] = useState('');
   const [description, setDescription] = useState('');
   const [previewUrls, setPreviewUrls] = useState<string[]>([]);
   const previewUrlsRef = useRef<string[]>([]);
   const nextTokenIdRef = useRef<number>(1);
+  const storeVersion = useAssetStoreVersion();
 
   useEffect(() => {
-    const store = getAssetStore();
-    void store.getCollectionMeta().then((meta) => {
+    void getAssetStore().getCollectionMeta().then((meta) => {
+      setCollectionName(meta.collectionName);
       setDescription(meta.description);
     });
+  }, [storeVersion]);
+
+  useEffect(() => {
     return () => {
       previewUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
       previewUrlsRef.current = [];
     };
+  }, []);
+
+  const commitName = useCallback((name: string) => {
+    const trimmed = name.trim() || 'Untitled Collection';
+    const activeId = getAssetStore().getActiveProjectIdSync();
+    if (activeId) void getAssetStore().renameProject(activeId, trimmed);
   }, []);
 
   const traitCount = useMemo(() => {
@@ -86,9 +97,8 @@ export function CollectionGenerator({
 
   const persistMeta = useCallback(async () => {
     const store = getAssetStore();
-    const current = await store.getCollectionMeta();
-    await store.setCollectionMeta(current.collectionName, description || '');
-  }, [description]);
+    await store.setCollectionMeta(collectionName || 'Untitled Collection', description || '');
+  }, [collectionName, description]);
 
   const cancel = useCallback(() => {
     workerRef.current?.postMessage({ type: 'abort' });
@@ -247,6 +257,20 @@ export function CollectionGenerator({
       </div>
 
       <div className="collection-generator-fields" style={{ display: 'grid', gap: 12, gridTemplateColumns: 'repeat(auto-fit,minmax(220px,1fr))' }}>
+        <label className="field-group">
+          <span>Collection name</span>
+          <input
+            className="uru-input"
+            type="text"
+            value={collectionName}
+            placeholder="Untitled Collection"
+            onChange={(event) => setCollectionName(event.target.value)}
+            onBlur={(event) => commitName(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter') { event.preventDefault(); commitName(event.currentTarget.value); event.currentTarget.blur(); }
+            }}
+          />
+        </label>
         <label className="field-group">
           <span>Target size</span>
           <input

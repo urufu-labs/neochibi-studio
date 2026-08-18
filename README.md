@@ -77,7 +77,7 @@ launchpad drop.
 - **✿ weighted rules** — per-trait rarity weights plus a single collection ruleset covering always/never layers, per-layer chance, trait pairs, and layer exclusions.
 - **✿ post-generation curation** — virtualized collection browser, single-token reroll, per-token trait swap with live preview, delete.
 - **✿ one-of-one tokens** — upload a finished PNG or hand-compose from your trait pool. custom name/description/attributes. survives regenerate.
-- **✿ IPFS publishing** — one-click pin of images + ERC-721 metadata returns two CIDs ready to hand off to a launchpad or contract.
+- **✿ IPFS publishing** — one-click directory pin of images then metadata returns one baseURI-compatible metadata CID ready to hand off to a launchpad or contract. images CID is available as a secondary reference.
 - **✿ no wallet needed to create** — minting is out of scope. the studio produces the CID and stops there.
 
 ---
@@ -217,16 +217,35 @@ everything* on regenerate).
 ### ✿ IPFS publishing
 
 the publish flow ([`lib/ipfs/pinata.ts`](lib/ipfs/pinata.ts)) uploads in two
-phases:
+directory phases:
 
-1. **images directory** — every output blob is pinned to a directory; the
-   response gives the collection CID.
+1. **images directory** — every output blob is pinned as one IPFS directory
+   in a single request. the response gives the `imageCid`.
 2. **metadata directory** — per-token ERC-721 JSON is generated referencing
-   `image: "ipfs://{collectionCID}/{tokenId}.png"`, then pinned; the response
-   gives the metadata CID.
+   `image: "ipfs://{imageCid}/{tokenId}.png"`, then all metadata JSONs are
+   pinned as a second IPFS directory. the response gives the `metadataCid`.
 
-the final panel shows two CID pills (collection + metadata) with copy CID /
-copy `ipfs://` / open-gateway affordances.
+the resulting shape matches what every ERC-721 launchpad and marketplace
+(OpenSea, Blur, Magic Eden) expects:
+
+```
+metadataCid/
+  1.json
+  2.json
+  ...
+
+imageCid/
+  1.png
+  2.png
+  ...
+```
+
+`tokenURI(1)` → `ipfs://metadataCid/1.json`, which contains
+`image: "ipfs://imageCid/1.png"`.
+
+the final panel shows one hero pill for the metadata CID (`copy CID`,
+`copy ipfs://`, `open on gateway ↗`) with a small toggle underneath revealing
+the image folder CID for anyone who wants to browse the raw pngs.
 
 1-of-1 metadata honors the custom fields: `customName` overrides the default
 `${collectionName} #${tokenId}`, `customDescription` overrides the

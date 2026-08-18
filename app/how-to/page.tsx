@@ -160,20 +160,26 @@ const steps = [
     body: (
       <>
         <p>
-          happy with the results? hit <strong>publish to ipfs</strong>. every token image gets pinned, then every
-          matching ERC-721 metadata file gets pinned right after.
+          happy with the results? hit <strong>publish to ipfs</strong>. images get pinned as one directory, then a
+          matching ERC-721 metadata directory referencing those images gets pinned right after.
         </p>
         <p style={{ marginTop: 8 }}>
-          you get back two{' '}
-          <strong style={{ color: 'var(--pink-hot)' }}>CIDs</strong>:
+          you get back one{' '}
+          <strong style={{ color: 'var(--pink-hot)' }}>metadata CID</strong> —
+          the one your launchpad or contract uses as{' '}
+          <span className="uru-num">baseURI</span>. token metadata lives at{' '}
+          <span className="uru-num">ipfs://METADATA_CID/{`{tokenId}`}.json</span>.
         </p>
-        <ul className="uru-list-flower" style={{ marginTop: 6 }}>
-          <li>collection manifest — points at every png</li>
-          <li>metadata index — the one you plug into your launchpad or contract</li>
-        </ul>
         <p style={{ marginTop: 8 }}>
-          copy either as <span className="uru-num">ipfs://…</span> or open it through a gateway to preview the folder.
-          that&apos;s it — your collection lives on the network づ｡◕‿‿◕｡)づ
+          your raw <strong>image folder CID</strong> is available under an
+          &quot;advanced&quot; toggle if you want to browse the pngs directly —
+          it&apos;s already referenced inside every metadata json, so most
+          people never need it.
+        </p>
+        <p style={{ marginTop: 8 }}>
+          copy the CID as <span className="uru-num">ipfs://…</span> or open it
+          through a gateway to preview the folder. that&apos;s it — your
+          collection lives on the network づ｡◕‿‿◕｡)づ
         </p>
       </>
     ),

@@ -30,8 +30,8 @@ const INITIAL: PinState = {
 };
 
 function short(cid: string): string {
-  if (cid.length <= 12) return cid;
-  return `${cid.slice(0, 6)}…${cid.slice(-6)}`;
+  if (cid.length <= 14) return cid;
+  return `${cid.slice(0, 7)}…${cid.slice(-7)}`;
 }
 
 export function IpfsPushPanel({ outputCount }: IpfsPushPanelProps) {
@@ -90,9 +90,9 @@ export function IpfsPushPanel({ outputCount }: IpfsPushPanelProps) {
   return (
     <section className="uru-shell ipfs-push-panel">
       <div className="panel-header compact-panel-header">
-        <h2 className="uru-h2">Push to IPFS ✿</h2>
+        <h2 className="uru-h2">Publish to IPFS ✿</h2>
         <p style={{ margin: '4px 0 0', color: 'var(--anchor-soft)', fontFamily: 'var(--font-round), Klee One, cursive', fontSize: 13 }}>
-          Publish every token image + metadata to IPFS. Returns a manifest CID you can hand to a launchpad.
+          Publishes images then metadata as two IPFS directories. Returns one metadata CID your launchpad uses as <code>baseURI</code> — the image folder CID is available too if you want to browse the raw pngs.
         </p>
       </div>
 
@@ -174,42 +174,102 @@ export function IpfsPushPanel({ outputCount }: IpfsPushPanelProps) {
       ) : null}
 
       {state.result ? (
-        <div style={{ display: 'grid', gap: 12, gridTemplateColumns: '1fr', marginTop: 12 }}>
-          {[
-            { label: 'Collection manifest', cid: state.result.collectionManifestCid },
-            { label: 'Metadata index', cid: state.result.metadataCid },
-          ].map((entry) => (
-            <div key={entry.label} className="uru-shell-tight">
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'baseline', justifyContent: 'space-between' }}>
-                <strong className="uru-eyebrow">{entry.label}</strong>
-                <span className="uru-num" title={entry.cid}>{short(entry.cid)}</span>
+        <div style={{ display: 'grid', gap: 12, marginTop: 12 }}>
+          {/* Hero: metadata CID */}
+          <div
+            className="uru-shell-tight ipfs-hero-cid"
+            style={{
+              borderColor: 'var(--pink-hot)',
+              background: 'var(--pink-warm)',
+              padding: '14px 16px',
+              display: 'grid',
+              gap: 10,
+            }}
+          >
+            <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', gap: 8, alignItems: 'baseline' }}>
+              <h3 className="uru-h2" style={{ margin: 0 }}>your collection metadata CID ✿</h3>
+              <span className="uru-num" title={state.result.metadataCid} style={{ fontSize: 15 }}>
+                {short(state.result.metadataCid)}
+              </span>
+            </div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+              <button
+                type="button"
+                className="uru-btn uru-btn-primary"
+                onClick={() => navigator.clipboard?.writeText(state.result!.metadataCid).catch(() => undefined)}
+              >
+                copy CID
+              </button>
+              <button
+                type="button"
+                className="uru-btn uru-btn-cream"
+                onClick={() => navigator.clipboard?.writeText(`ipfs://${state.result!.metadataCid}/`).catch(() => undefined)}
+              >
+                copy ipfs://
+              </button>
+              <a
+                className="uru-btn"
+                href={`https://ipfs.io/ipfs/${state.result.metadataCid}/`}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                open on gateway ↗
+              </a>
+            </div>
+            <span className="uru-eyebrow" style={{ color: 'var(--anchor)' }}>
+              hand this to your launchpad as the baseURI ・ token metadata lives at{' '}
+              <span className="uru-num">ipfs://{short(state.result.metadataCid)}/{`{tokenId}`}.json</span>
+            </span>
+          </div>
+
+          {/* Secondary: image folder CID under a toggle */}
+          <details className="uru-shell-tight" style={{ padding: '10px 14px' }}>
+            <summary
+              style={{
+                cursor: 'pointer',
+                fontFamily: 'var(--font-round), Klee One, cursive',
+                fontSize: 14,
+                color: 'var(--anchor)',
+              }}
+            >
+              <span className="uru-eyebrow" style={{ marginRight: 6 }}>advanced</span>
+              view raw image folder CID
+            </summary>
+            <div style={{ marginTop: 10, display: 'grid', gap: 8 }}>
+              <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', gap: 8, alignItems: 'baseline' }}>
+                <strong className="uru-eyebrow">image folder</strong>
+                <span className="uru-num" title={state.result.imageCid}>{short(state.result.imageCid)}</span>
               </div>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 8 }}>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
                 <button
                   type="button"
                   className="uru-btn uru-btn-cream"
-                  onClick={() => navigator.clipboard?.writeText(entry.cid).catch(() => undefined)}
+                  onClick={() => navigator.clipboard?.writeText(state.result!.imageCid).catch(() => undefined)}
                 >
                   copy CID
                 </button>
-                <a
-                  className="uru-btn"
-                  href={`https://ipfs.io/ipfs/${entry.cid}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  open gateway ↗
-                </a>
                 <button
                   type="button"
                   className="uru-btn uru-btn-cream"
-                  onClick={() => navigator.clipboard?.writeText(`ipfs://${entry.cid}`).catch(() => undefined)}
+                  onClick={() => navigator.clipboard?.writeText(`ipfs://${state.result!.imageCid}/`).catch(() => undefined)}
                 >
                   copy ipfs://
                 </button>
+                <a
+                  className="uru-btn"
+                  href={`https://ipfs.io/ipfs/${state.result.imageCid}/`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  browse images ↗
+                </a>
               </div>
+              <span className="uru-eyebrow" style={{ color: 'var(--anchor-soft)' }}>
+                this is where the raw pngs live — each metadata json references it.
+              </span>
             </div>
-          ))}
+          </details>
+
           <p className="uru-eyebrow" style={{ margin: 0 }}>
             pinned <span className="uru-num">{state.result.totalTokens.toLocaleString()}</span> tokens ✿
           </p>
