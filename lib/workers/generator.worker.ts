@@ -7,7 +7,6 @@
 
 import {
   normalizeCollectionRules,
-  pickWeightedTrait,
   rollFromTemplate,
   type CollectionRules,
 } from '@/lib/art-generator/rules';
@@ -158,13 +157,6 @@ async function runGeneration(message: GeneratorStartMessage): Promise<void> {
         continue;
       }
       uniqueKeys.add(key);
-      // Ensure the layer's own weights are respected — pick weighted trait if none set.
-      for (const layer of layerAssets) {
-        if (!selection[layer.id] && layer.traits.length > 0) {
-          const picked = pickWeightedTrait(layer.traits, message.weights, rng);
-          if (picked) selection[layer.id] = picked.id;
-        }
-      }
       const { blob, traits } = await drawToken(canvas, ctx, layers, selection);
       produced += 1;
       (self as unknown as DedicatedWorkerGlobalScope).postMessage(

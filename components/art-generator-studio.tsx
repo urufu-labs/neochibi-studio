@@ -73,15 +73,6 @@ function moveLayerOrder(items: string[], fromIndex: number, toIndex: number): st
   return clone;
 }
 
-function pickRandomTraits(layers: TraitLayer[], weights: TraitWeights = {}): Record<string, string> {
-  return layers.reduce<Record<string, string>>((selection, layer) => {
-    if (layer.traits.length === 0) return selection;
-    const picked = pickWeightedTrait(layer.traits, weights);
-    if (picked) selection[layer.id] = picked.id;
-    return selection;
-  }, {});
-}
-
 function buildPreviewSelectionFromGallerySeed(
   layers: TraitLayer[],
   seedSelection: Record<string, string>,
@@ -185,6 +176,8 @@ export function ArtGeneratorStudio() {
   const [library, setLibrary] = useState<TraitLibrary | null>(null);
   const [layerOrder, setLayerOrder] = useState<string[]>([]);
   const [selectedTraits, setSelectedTraits] = useState<Record<string, string>>({});
+  const selectedTraitsRef = useRef(selectedTraits);
+  selectedTraitsRef.current = selectedTraits;
   const [state, setState] = useState<LoadableState>({ loading: false, error: null });
 
   const [uploadLayerName, setUploadLayerName] = useState('');
@@ -231,6 +224,10 @@ export function ArtGeneratorStudio() {
 
   type StudioTab = 'library' | 'templates' | null;
   const [activeTab, setActiveTab] = useState<StudioTab>(null);
+  const [collapsedLayerRules, setCollapsedLayerRules] = useState(false);
+  const [collapsedPairs, setCollapsedPairs] = useState(true);
+  const [collapsedExclusions, setCollapsedExclusions] = useState(true);
+  const [collapsedStats, setCollapsedStats] = useState(true);
   const [gallerySeeds, setGallerySeeds] = useState<Array<{ selection: Record<string, string>; presetId: string | null }>>([]);
   const [galleryTileCount, setGalleryTileCount] = useState(16);
   const [galleryEffectsEnabled, setGalleryEffectsEnabled] = useState(true);
@@ -258,6 +255,27 @@ export function ArtGeneratorStudio() {
 
   useEffect(() => {
     void getAssetStore().listOutputs().then((outputs) => setOutputCount(outputs.length));
+  }, [storeVersion]);
+
+  const libraryRefreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    if (storeVersion === 0) return;
+    if (libraryRefreshTimerRef.current) clearTimeout(libraryRefreshTimerRef.current);
+    libraryRefreshTimerRef.current = setTimeout(() => {
+      void getAssetStore().getLibrary().then((next) => {
+        const sig = (lib: TraitLibrary | null) => lib
+          ? lib.layers.map((l) => `${l.directoryName}:${l.traits.map((t) => `${t.relativePath}@${t.version}`).join('|')}`).join(';')
+          : '';
+        const nextSig = sig(next);
+        const currentSig = sig(previousLibraryRef.current);
+        if (nextSig === currentSig) return;
+        applyLibrary(next, selectedTraitsRef.current);
+      });
+    }, 300);
+    return () => {
+      if (libraryRefreshTimerRef.current) clearTimeout(libraryRefreshTimerRef.current);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [storeVersion]);
 
   useEffect(() => {
@@ -438,7 +456,7 @@ export function ArtGeneratorStudio() {
           name: 'Autosave',
           rootDir: rootDirInput.trim(),
           layerOrder,
-          selectedTraits,
+          selectedTraits: selectedTraitsRef.current,
           effects,
           rules,
         });
@@ -449,20 +467,19 @@ export function ArtGeneratorStudio() {
           selectedTraits: config.selectedTraits,
           effects: config.effects,
           rules: config.rules,
-          rawJson: JSON.stringify(config, null, 2),
         });
         setAutosaveStatus('saved');
       } catch {
         setAutosaveStatus('error');
       }
-    }, 700);
+    }, 1500);
 
     return () => {
       if (autosaveTimerRef.current) {
         clearTimeout(autosaveTimerRef.current);
       }
     };
-  }, [layerOrder, selectedTraits, effects, rules, library, rootDirInput]);
+  }, [layerOrder, effects, rules, library, rootDirInput]);
 
   useEffect(() => {
     if (!traitWeightsHydratedRef.current || !rootDirInput.trim()) return;
@@ -573,7 +590,11 @@ export function ArtGeneratorStudio() {
     }
 
     setActiveGalleryTileIndex(null);
-    setSelectedTraits(pickRandomTraits(library.layers, traitWeights));
+    const { selection } = rollFromTemplate(library.layers, rules.template, traitWeights, Math.random, {
+      traitPairs: rules.traitPairs,
+      layerExclusions: rules.layerExclusions,
+    });
+    setSelectedTraits(buildPreviewSelectionFromGallerySeed(library.layers, selection));
   }
 
   function randomizeLayer(layer: TraitLayer) {
@@ -1006,8 +1027,8 @@ export function ArtGeneratorStudio() {
               </span>
             </div>
             <div className="studio-toolbar-actions">
-              <button className="uru-btn" onClick={randomizeSelection} type="button" disabled={!library}>
-                Shuffle
+              <button className="uru-btn uru-btn-primary" onClick={randomizeSelection} type="button" disabled={!library}>
+                Preview single token ✿
               </button>
               <button className="uru-btn uru-btn-cream" onClick={loadLibrary} type="button" disabled={state.loading}>
                 {state.loading ? 'Loading…' : 'Reload'}
@@ -1095,11 +1116,15 @@ export function ArtGeneratorStudio() {
                       </div>
                       <div className="uru-shell-inner-inner">
                         <div className="layer-trait-thumb">
-                          {selectedTrait && library ? (
-                            <img alt={`${layer.name}: ${selectedTrait.name}`} src={buildAssetUrl(library.rootDir, selectedTrait)} />
-                          ) : (
-                            <span className="layer-trait-thumb-empty">—</span>
-                          )}
+                          {(() => {
+                            if (!selectedTrait || !library) return <span className="layer-trait-thumb-empty">—</span>;
+                            const src = buildAssetUrl(library.rootDir, selectedTrait);
+                            return src ? (
+                              <img alt={`${layer.name}: ${selectedTrait.name}`} src={src} />
+                            ) : (
+                              <span className="layer-trait-thumb-empty">…</span>
+                            );
+                          })()}
                         </div>
                       </div>
                       <div className="layer-card-compact-main">
@@ -1236,13 +1261,23 @@ export function ArtGeneratorStudio() {
       </section>
 
 
-      {activeTab === 'library' ? (
-      <section className="uru-shell panel manager-panel tab-panel">
-        <div className="panel-header compact-panel-header">
-          <h2 className="uru-h2">Layer + trait management</h2>
-          <p style={{ margin: '4px 0 0', color: 'var(--anchor-soft)', fontFamily: 'var(--font-round), Klee One, cursive', fontSize: 13 }}>Create layers, persist reordered folders, rename selected traits, delete assets, create new pasted traits, and replace a target image by file upload or Ctrl+V paste.</p>
+      <section className="uru-shell panel manager-panel tab-panel" id="library-manager">
+        <div className="panel-header compact-panel-header panel-header-collapsible">
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <h2 className="uru-h2">Layer + trait management</h2>
+            <p style={{ margin: '4px 0 0', color: 'var(--anchor-soft)', fontFamily: 'var(--font-round), Klee One, cursive', fontSize: 13 }}>Create layers, persist reordered folders, rename selected traits, delete assets, create new pasted traits, and replace a target image by file upload or Ctrl+V paste.</p>
+          </div>
+          <button
+            type="button"
+            className="uru-chip panel-minimize"
+            aria-label={activeTab === 'library' ? 'Minimize library manager' : 'Expand library manager'}
+            aria-expanded={activeTab === 'library'}
+            onClick={() => setActiveTab((current) => (current === 'library' ? null : 'library'))}
+          >
+            {activeTab === 'library' ? '−' : '＋'}
+          </button>
         </div>
-
+        {activeTab === 'library' ? (<>
         <div className="manager-grid">
           <label className="field-group">
             <span>New layer name</span>
@@ -1313,9 +1348,10 @@ export function ArtGeneratorStudio() {
                   <ul className="weights-trait-list">
                     {layer.traits.map((trait) => {
                       const weight = traitWeights[trait.relativePath] ?? DEFAULT_TRAIT_WEIGHT;
+                      const weightsThumbSrc = buildAssetUrl(library!.rootDir, trait);
                       return (
                         <li className="weights-trait-row" key={trait.relativePath}>
-                          <img alt={trait.name} className="weights-trait-thumb" src={buildAssetUrl(library!.rootDir, trait)} />
+                          {weightsThumbSrc ? <img alt={trait.name} className="weights-trait-thumb" src={weightsThumbSrc} /> : <span className="weights-trait-thumb" aria-hidden />}
                           <span className="weights-trait-name">{trait.name}</span>
                           <input
                             className="uru-input"
@@ -1525,21 +1561,43 @@ export function ArtGeneratorStudio() {
             {manageState.success}
           </div>
         ) : null}
+        </>) : null}
       </section>
-      ) : null}
 
-      {activeTab === 'templates' ? (
-      <section className="uru-shell panel tab-panel">
-        <div className="panel-header compact-panel-header">
-          <h2 className="uru-h2">Collection rules</h2>
-          <p style={{ margin: '4px 0 0', color: 'var(--anchor-soft)', fontFamily: 'var(--font-round), Klee One, cursive', fontSize: 13 }}>Mark each layer as Always (must include), Never (skipped), or Optional. Optional layers get an appearance chance and can skip other layers when they roll. Trait pairs and layer exclusions apply on top of these rules.</p>
+      <section className="uru-shell panel tab-panel" id="collection-rules">
+        <div className="panel-header compact-panel-header panel-header-collapsible">
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <h2 className="uru-h2">Collection rules</h2>
+            <p style={{ margin: '4px 0 0', color: 'var(--anchor-soft)', fontFamily: 'var(--font-round), Klee One, cursive', fontSize: 13 }}>Mark each layer as Always (must include), Never (skipped), or Optional. Optional layers get an appearance chance and can skip other layers when they roll. Trait pairs and layer exclusions apply on top of these rules.</p>
+          </div>
+          <button
+            type="button"
+            className="uru-chip panel-minimize"
+            aria-label={activeTab === 'templates' ? 'Minimize collection rules' : 'Expand collection rules'}
+            aria-expanded={activeTab === 'templates'}
+            onClick={() => setActiveTab((current) => (current === 'templates' ? null : 'templates'))}
+          >
+            {activeTab === 'templates' ? '−' : '＋'}
+          </button>
         </div>
-
+        {activeTab === 'templates' ? (<>
         {orderedLayers.length === 0 ? (
           <div className="uru-bubble empty-state">Load a root directory to configure rules.</div>
         ) : (
           <div className="uru-shell-inner template-card">
-            <h3 className="uru-h2" style={{ fontSize: 16 }}>Layer rules</h3>
+            <div className="panel-header-collapsible">
+              <h3 className="uru-h2" style={{ fontSize: 16, margin: 0 }}>Layer rules</h3>
+              <button
+                type="button"
+                className="uru-chip panel-minimize"
+                aria-label={collapsedLayerRules ? 'Expand layer rules' : 'Minimize layer rules'}
+                aria-expanded={!collapsedLayerRules}
+                onClick={() => setCollapsedLayerRules((v) => !v)}
+              >
+                {collapsedLayerRules ? '＋' : '−'}
+              </button>
+            </div>
+            {!collapsedLayerRules ? (
             <ul className="template-layer-list">
               {orderedLayers.map((layer) => {
                 const state = getLayerTemplateState(rules.template, layer.id);
@@ -1682,9 +1740,11 @@ export function ArtGeneratorStudio() {
                                     checked={!excluded}
                                     onChange={(event) => toggleTraitInTemplate(trait.relativePath, event.target.checked)}
                                   />
-                                  {library ? (
-                                    <img alt={trait.name} className="template-trait-subset-thumb" src={buildAssetUrl(library.rootDir, trait)} />
-                                  ) : null}
+                                  {(() => {
+                                    if (!library) return null;
+                                    const s = buildAssetUrl(library.rootDir, trait);
+                                    return s ? <img alt={trait.name} className="template-trait-subset-thumb" src={s} /> : null;
+                                  })()}
                                   <span>{trait.name}</span>
                                 </label>
                               </li>
@@ -1697,15 +1757,28 @@ export function ArtGeneratorStudio() {
                 );
               })}
             </ul>
+            ) : null}
           </div>
         )}
 
         {orderedLayers.length > 0 ? (
           <div className="uru-shell-inner rules-card">
-            <div className="panel-header compact-panel-header">
-              <h3 className="uru-h2" style={{ fontSize: 16 }}>Trait pairs</h3>
-              <p style={{ margin: '4px 0 0', color: 'var(--anchor-soft)', fontFamily: 'var(--font-round), Klee One, cursive', fontSize: 13 }}>Bidirectional. When trait A is rolled, force trait B's layer to B. Useful for matching tail/hair colorways.</p>
+            <div className="panel-header compact-panel-header panel-header-collapsible">
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <h3 className="uru-h2" style={{ fontSize: 16 }}>Trait pairs</h3>
+                <p style={{ margin: '4px 0 0', color: 'var(--anchor-soft)', fontFamily: 'var(--font-round), Klee One, cursive', fontSize: 13 }}>Bidirectional. When trait A is rolled, force trait B's layer to B. Useful for matching tail/hair colorways.</p>
+              </div>
+              <button
+                type="button"
+                className="uru-chip panel-minimize"
+                aria-label={collapsedPairs ? 'Expand trait pairs' : 'Minimize trait pairs'}
+                aria-expanded={!collapsedPairs}
+                onClick={() => setCollapsedPairs((v) => !v)}
+              >
+                {collapsedPairs ? '＋' : '−'}
+              </button>
             </div>
+            {!collapsedPairs ? (<>
             <div className="trait-pair-add">
               <select className="uru-input" value={pairDraftA} onChange={(event) => setPairDraftA(event.target.value)}>
                 <option value="">— pick trait A —</option>
@@ -1753,7 +1826,11 @@ export function ArtGeneratorStudio() {
                   return (
                     <li className="trait-pair-row" key={`${pair.a}|${pair.b}`}>
                       <div className="trait-pair-side">
-                        {library && aTrait ? <img alt={aTrait.name} src={buildAssetUrl(library.rootDir, aTrait)} className="trait-pair-thumb" /> : null}
+                        {(() => {
+                          if (!library || !aTrait) return null;
+                          const s = buildAssetUrl(library.rootDir, aTrait);
+                          return s ? <img alt={aTrait.name} src={s} className="trait-pair-thumb" /> : null;
+                        })()}
                         <div>
                           <strong>{aTrait?.name ?? pair.a}</strong>
                           <span className="uru-eyebrow preset-meta">{aLayer?.name ?? '?'}</span>
@@ -1761,7 +1838,11 @@ export function ArtGeneratorStudio() {
                       </div>
                       <span className="pair-arrow">↔</span>
                       <div className="trait-pair-side">
-                        {library && bTrait ? <img alt={bTrait.name} src={buildAssetUrl(library.rootDir, bTrait)} className="trait-pair-thumb" /> : null}
+                        {(() => {
+                          if (!library || !bTrait) return null;
+                          const s = buildAssetUrl(library.rootDir, bTrait);
+                          return s ? <img alt={bTrait.name} src={s} className="trait-pair-thumb" /> : null;
+                        })()}
                         <div>
                           <strong>{bTrait?.name ?? pair.b}</strong>
                           <span className="uru-eyebrow preset-meta">{bLayer?.name ?? '?'}</span>
@@ -1779,15 +1860,28 @@ export function ArtGeneratorStudio() {
                 })}
               </ul>
             )}
+            </>) : null}
           </div>
         ) : null}
 
         {orderedLayers.length > 0 ? (
           <div className="uru-shell-inner rules-card">
-            <div className="panel-header compact-panel-header">
-              <h3 className="uru-h2" style={{ fontSize: 16 }}>Global layer exclusions</h3>
-              <p style={{ margin: '4px 0 0', color: 'var(--anchor-soft)', fontFamily: 'var(--font-round), Klee One, cursive', fontSize: 13 }}>Extra layer skip rules that apply whenever the source layer rolls. Use the per-layer &quot;Skips when present&quot; control above for scoped skips.</p>
+            <div className="panel-header compact-panel-header panel-header-collapsible">
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <h3 className="uru-h2" style={{ fontSize: 16 }}>Global layer exclusions</h3>
+                <p style={{ margin: '4px 0 0', color: 'var(--anchor-soft)', fontFamily: 'var(--font-round), Klee One, cursive', fontSize: 13 }}>Extra layer skip rules that apply whenever the source layer rolls. Use the per-layer &quot;Skips when present&quot; control above for scoped skips.</p>
+              </div>
+              <button
+                type="button"
+                className="uru-chip panel-minimize"
+                aria-label={collapsedExclusions ? 'Expand global layer exclusions' : 'Minimize global layer exclusions'}
+                aria-expanded={!collapsedExclusions}
+                onClick={() => setCollapsedExclusions((v) => !v)}
+              >
+                {collapsedExclusions ? '＋' : '−'}
+              </button>
             </div>
+            {!collapsedExclusions ? (<>
             <div className="layer-exclusion-add">
               <label className="field-group">
                 <span>Source layer</span>
@@ -1862,14 +1956,27 @@ export function ArtGeneratorStudio() {
                 })}
               </ul>
             )}
+            </>) : null}
           </div>
         ) : null}
 
         <div className="uru-shell-inner stats-card">
-          <div className="stats-card-head">
-            <h3 className="uru-h2" style={{ fontSize: 16 }}>Collection stats</h3>
-            <p className="uru-eyebrow preset-meta">Capacity is the deterministic upper bound (product of viable traits per non-Never layer). Simulation runs the actual weighted roll to estimate how many uniques you'll get under your rarity setup.</p>
+          <div className="stats-card-head panel-header-collapsible">
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <h3 className="uru-h2" style={{ fontSize: 16 }}>Collection stats</h3>
+              <p className="uru-eyebrow preset-meta">Capacity is the deterministic upper bound (product of viable traits per non-Never layer). Simulation runs the actual weighted roll to estimate how many uniques you'll get under your rarity setup.</p>
+            </div>
+            <button
+              type="button"
+              className="uru-chip panel-minimize"
+              aria-label={collapsedStats ? 'Expand collection stats' : 'Minimize collection stats'}
+              aria-expanded={!collapsedStats}
+              onClick={() => setCollapsedStats((v) => !v)}
+            >
+              {collapsedStats ? '＋' : '−'}
+            </button>
           </div>
+          {!collapsedStats ? (<>
           <div className="stats-controls">
             <label className="field-group">
               <span>Target collection size</span>
@@ -1959,9 +2066,10 @@ export function ArtGeneratorStudio() {
               })}
             </div>
           ) : null}
+          </>) : null}
         </div>
+        </>) : null}
       </section>
-      ) : null}
 
       <section className="uru-shell panel collection-preview-panel">
           <div className="panel-header compact-panel-header">
@@ -2061,27 +2169,6 @@ export function ArtGeneratorStudio() {
       <CollectionBrowser library={library} rules={rules} weights={traitWeights} />
 
       <IpfsPushPanel outputCount={outputCount} />
-
-      <nav className="studio-tabs" style={{ display: 'flex', flexWrap: 'wrap', gap: 8, justifyContent: 'center', marginTop: 8 }}>
-        {([
-          { id: 'library', label: 'Library manager', count: null },
-          { id: 'templates', label: 'Rules', count: null },
-        ] as const).map((tab) => {
-          const isActive = activeTab === tab.id;
-          return (
-            <button
-              key={tab.id}
-              type="button"
-              className={`uru-chip studio-tab${isActive ? ' studio-tab-active' : ''}`}
-              data-active={isActive ? 'true' : undefined}
-              onClick={() => setActiveTab((current) => (current === tab.id ? null : tab.id))}
-            >
-              {tab.label}
-              {tab.count !== null && tab.count > 0 ? <span className="uru-num studio-tab-count">{tab.count}</span> : null}
-            </button>
-          );
-        })}
-      </nav>
 
       {pendingDelete ? (
         <div

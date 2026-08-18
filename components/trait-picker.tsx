@@ -48,9 +48,10 @@ export function TraitPicker({ layer, library, value, onChange, buildAssetUrl }: 
         aria-expanded={open}
       >
         <span className="trait-picker-thumb">
-          {selected ? (
-            <img alt={selected.name} src={buildAssetUrl(library.rootDir, selected)} />
-          ) : (
+          {selected ? (() => {
+            const src = buildAssetUrl(library.rootDir, selected);
+            return src ? <img alt={selected.name} src={src} /> : <span className="trait-picker-thumb-empty">…</span>;
+          })() : (
             <span className="trait-picker-thumb-empty">—</span>
           )}
         </span>
@@ -71,21 +72,24 @@ export function TraitPicker({ layer, library, value, onChange, buildAssetUrl }: 
             </span>
             <span>None</span>
           </button>
-          {layer.traits.map((trait) => (
-            <button
-              key={trait.id}
-              type="button"
-              className={`trait-picker-option${value === trait.id ? ' trait-picker-option-active' : ''}`}
-              onClick={() => pick(trait.id)}
-              role="option"
-              aria-selected={value === trait.id}
-            >
-              <span className="trait-picker-thumb trait-picker-thumb-small">
-                <img alt={trait.name} src={buildAssetUrl(library.rootDir, trait)} />
-              </span>
-              <span>{trait.name}</span>
-            </button>
-          ))}
+          {layer.traits.map((trait) => {
+            const src = buildAssetUrl(library.rootDir, trait);
+            return (
+              <button
+                key={trait.id}
+                type="button"
+                className={`trait-picker-option${value === trait.id ? ' trait-picker-option-active' : ''}`}
+                onClick={() => pick(trait.id)}
+                role="option"
+                aria-selected={value === trait.id}
+              >
+                <span className="trait-picker-thumb trait-picker-thumb-small">
+                  {src ? <img alt={trait.name} src={src} /> : <span className="trait-picker-thumb-empty">…</span>}
+                </span>
+                <span>{trait.name}</span>
+              </button>
+            );
+          })}
         </div>
       ) : null}
     </div>

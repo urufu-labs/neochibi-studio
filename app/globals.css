@@ -2316,6 +2316,459 @@ body {
   font-size: 22px;
 }
 
+/* Trait pair rows — thumbs must stay small, not blow up to native resolution. */
+.trait-pair-list {
+  list-style: none;
+  padding: 0;
+  margin: 8px 0 0;
+  display: grid;
+  gap: 8px;
+}
+.trait-pair-row {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr auto;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  background: var(--paper-white);
+  border: 1.5px solid var(--anchor);
+  border-radius: 10px;
+}
+.trait-pair-side {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+.trait-pair-side strong {
+  font-family: var(--font-round), Klee One, cursive;
+  font-size: 14px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.trait-pair-side .preset-meta {
+  display: block;
+}
+.trait-pair-thumb {
+  width: 44px;
+  height: 44px;
+  flex: 0 0 44px;
+  object-fit: contain;
+  background: var(--paper-white);
+  border: 1.5px solid var(--anchor);
+  border-radius: 8px;
+  padding: 2px;
+}
+.pair-arrow {
+  font-family: var(--font-pixel), monospace;
+  color: var(--anchor-soft);
+  font-size: 14px;
+}
+
+/* Template trait subset — checkbox list under Layer rules → "trait subset". */
+.template-trait-subset {
+  margin-top: 8px;
+}
+.template-trait-subset > summary {
+  cursor: pointer;
+  font-family: var(--font-round), Klee One, cursive;
+  font-size: 13px;
+  color: var(--anchor);
+}
+.template-trait-subset-actions {
+  display: flex;
+  gap: 6px;
+  margin: 8px 0;
+  flex-wrap: wrap;
+}
+.template-trait-subset-list {
+  list-style: none;
+  padding: 0;
+  margin: 6px 0 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 4px 10px;
+}
+.template-trait-subset-item {
+  min-width: 0;
+}
+.template-trait-subset-item label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  font-family: var(--font-round), Klee One, cursive;
+  font-size: 13px;
+}
+.template-trait-subset-item label > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.template-trait-subset-thumb {
+  width: 28px;
+  height: 28px;
+  flex: 0 0 28px;
+  object-fit: contain;
+  background: var(--paper-white);
+  border: 1.5px solid var(--anchor);
+  border-radius: 6px;
+  padding: 1px;
+}
+
+/* Trait rarities (weights manager) — under Layer + trait management. */
+.weights-manager {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+}
+.weights-layer {
+  border: 1.5px solid var(--anchor);
+  border-radius: 10px;
+  padding: 8px 10px;
+  background: var(--paper-white);
+}
+.weights-layer > summary {
+  cursor: pointer;
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  font-family: var(--font-round), Klee One, cursive;
+  font-size: 14px;
+}
+.weights-trait-list {
+  list-style: none;
+  padding: 0;
+  margin: 8px 0 0;
+  display: grid;
+  gap: 6px;
+}
+.weights-trait-row {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 6px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  min-width: 0;
+}
+.weights-trait-row:hover {
+  border-color: var(--anchor);
+}
+.weights-trait-thumb {
+  width: 36px;
+  height: 36px;
+  flex: 0 0 36px;
+  object-fit: contain;
+  background: var(--paper-white);
+  border: 1.5px solid var(--anchor);
+  border-radius: 8px;
+  padding: 2px;
+}
+.weights-trait-name {
+  font-family: var(--font-round), Klee One, cursive;
+  font-size: 13px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+.weights-trait-row .uru-input[type="number"] {
+  width: 72px;
+  text-align: right;
+}
+
+/* Collection rules — the big Always/Optional/Never + Skips + Trait subset stack. */
+.template-layer-list {
+  list-style: none;
+  padding: 0;
+  margin: 12px 0 0;
+  display: grid;
+  gap: 14px;
+}
+.template-layer-row {
+  display: grid;
+  gap: 10px;
+  padding: 12px 14px;
+  border: 1.5px solid var(--anchor);
+  border-radius: 12px;
+  background: var(--paper-white);
+}
+.template-layer-row-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.template-layer-name {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+.template-layer-name strong {
+  font-family: var(--font-round), Klee One, cursive;
+  font-size: 16px;
+}
+.template-toggle {
+  display: inline-flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.template-toggle-button {
+  cursor: pointer;
+  min-height: 28px;
+}
+.template-toggle-active {
+  box-shadow: 0 0 0 2px var(--anchor) inset;
+}
+.template-layer-rule-strip {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding-top: 4px;
+  border-top: 1px dashed var(--anchor-soft);
+}
+.template-layer-chance {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.template-layer-chance .uru-input[type="number"] {
+  width: 72px;
+  text-align: right;
+}
+.template-layer-chance-range {
+  flex: 1 1 200px;
+  min-width: 160px;
+}
+.template-layer-skip-targets,
+.layer-exclusion-targets {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 8px 0 4px;
+}
+.template-layer-skip-targets label,
+.layer-exclusion-targets label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1.5px solid var(--anchor);
+  background: var(--paper-white);
+  font-family: var(--font-pixel), monospace;
+  font-size: 11px;
+  text-transform: lowercase;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  user-select: none;
+}
+.template-layer-skip-targets label:has(input:checked),
+.layer-exclusion-targets label:has(input:checked) {
+  background: var(--pink-hot);
+  color: #fff;
+  border-color: var(--pink-hot);
+}
+.template-layer-skip-targets label input,
+.layer-exclusion-targets label input {
+  accent-color: #fff;
+}
+
+/* Global layer exclusions list */
+.layer-exclusion-list {
+  list-style: none;
+  padding: 0;
+  margin: 8px 0 0;
+  display: grid;
+  gap: 10px;
+}
+.layer-exclusion-list > li {
+  display: grid;
+  gap: 6px;
+  padding: 8px 10px;
+  border: 1.5px solid var(--anchor);
+  border-radius: 10px;
+  background: var(--paper-white);
+}
+
+/* Summary rows that pair a label with a count (▾ Skips when present  4 layers) */
+.template-layer-row summary,
+.weights-layer > summary {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.template-layer-row details {
+  border: 1px dashed var(--anchor-soft);
+  border-radius: 8px;
+  padding: 6px 10px;
+}
+.template-layer-row details[open] {
+  background: color-mix(in srgb, var(--pink-warm) 40%, transparent);
+}
+
+/* Fix the "labeleyebrow + valuestrong" cramming across the app. */
+.uru-eyebrow { display: inline-block; }
+.stats-label + strong,
+.stats-label + span,
+.stats-label + em { margin-left: 8px; }
+
+/* Collection stats card */
+.stats-card {
+  display: grid;
+  gap: 12px;
+}
+.stats-card-head { display: grid; gap: 4px; }
+.stats-controls {
+  display: flex;
+  gap: 12px;
+  align-items: flex-end;
+  flex-wrap: wrap;
+}
+.stats-controls .field-group {
+  display: grid;
+  gap: 4px;
+  min-width: 220px;
+}
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+}
+.stats-readout {
+  display: grid;
+  gap: 4px;
+  padding: 10px 12px;
+  border: 1.5px solid var(--anchor);
+  border-radius: 10px;
+  background: var(--paper-white);
+}
+.stats-readout > strong {
+  font-family: var(--font-display), Yusei Magic, serif;
+  font-size: 20px;
+}
+.stats-readout-warn {
+  border-color: var(--pink-hot);
+  background: var(--pink-warm);
+}
+.stats-warn-text {
+  font-family: var(--font-pixel), monospace;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--anchor);
+}
+.stats-trait-list { display: grid; gap: 8px; }
+.stats-layer-block {
+  border: 1.5px solid var(--anchor);
+  border-radius: 10px;
+  padding: 10px 12px;
+  background: var(--paper-white);
+}
+.stats-layer-block > summary {
+  cursor: pointer;
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  flex-wrap: wrap;
+  font-family: var(--font-round), Klee One, cursive;
+  font-size: 14px;
+}
+.stats-trait-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 8px;
+  font-size: 13px;
+}
+.stats-trait-table th,
+.stats-trait-table td {
+  padding: 6px 10px;
+  text-align: left;
+  border-bottom: 1px dashed var(--anchor-soft);
+}
+.stats-trait-table th {
+  font-family: var(--font-pixel), monospace;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--anchor);
+}
+.stats-trait-table td.uru-num,
+.stats-trait-table th:nth-child(n+2) { text-align: right; }
+.stats-trait-row-empty td { color: var(--anchor-soft); }
+
+/* Layer card — tidier button rows */
+.layer-card-compact-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 6px;
+}
+.layer-card-compact-head .uru-input {
+  flex: 1 1 160px;
+}
+.layer-meta { margin-left: 4px; }
+.layer-card-compact-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+  padding: 6px 0;
+  border-top: 1px dashed var(--anchor-soft);
+}
+.layer-card-compact-row:first-child { border-top: 0; padding-top: 0; }
+.layer-card-compact-row .trait-picker { flex: 1 1 220px; min-width: 180px; }
+.layer-card-compact-row .layer-trait-select { flex: 1 1 200px; min-width: 160px; }
+.layer-card-compact-row .uru-btn { min-height: 32px; }
+.layer-index-mini {
+  font-family: var(--font-pixel), monospace;
+  font-size: 11px;
+  text-align: center;
+  min-width: 28px;
+}
+.layer-reorder-stack {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 2px;
+  align-items: center;
+}
+.layer-reorder-stack .icon-button {
+  padding: 2px 8px;
+  min-width: 28px;
+}
+
+/* Collapsible panel headers — minimize button + title on one line */
+.panel-header-collapsible {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: nowrap;
+}
+.panel-minimize {
+  flex: 0 0 auto;
+  padding: 2px 10px;
+  font-family: var(--font-display), Yusei Magic, serif;
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  min-width: 32px;
+  text-align: center;
+}
+.panel-minimize:hover {
+  background: var(--pink-warm);
+}
+
+
 /* Manager / tab grids kept simple — inherit .uru-shell for their outer frame. */
 .tab-panel { display: flex; flex-direction: column; gap: 12px; }
 .manager-grid,
