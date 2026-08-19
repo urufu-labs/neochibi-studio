@@ -153,33 +153,32 @@ const steps = [
   {
     n: '06',
     jp: '六',
-    title: 'publish to ipfs',
+    title: 'publish or download',
     tape: 'uru-tape-pink',
     tapeRotate: 6,
     tapeOffset: { top: -8, right: 40 },
     body: (
       <>
         <p>
-          happy with the results? hit <strong>publish to ipfs</strong>. images get pinned as one directory, then a
-          matching ERC-721 metadata directory referencing those images gets pinned right after.
+          happy with the results? you have two ways out — pick either, or do both.
         </p>
-        <p style={{ marginTop: 8 }}>
-          you get back one{' '}
-          <strong style={{ color: 'var(--pink-hot)' }}>metadata CID</strong> —
-          the one your launchpad or contract uses as{' '}
+        <p style={{ marginTop: 10 }}>
+          <strong style={{ color: 'var(--pink-hot)' }}>publish to ipfs</strong> — images get pinned as one directory,
+          then a matching ERC-721 metadata directory referencing those images gets pinned right after. you get back
+          one <strong>metadata CID</strong> your launchpad or contract uses as{' '}
           <span className="uru-num">baseURI</span>. token metadata lives at{' '}
           <span className="uru-num">ipfs://METADATA_CID/{`{tokenId}`}.json</span>.
         </p>
-        <p style={{ marginTop: 8 }}>
-          your raw <strong>image folder CID</strong> is available under an
-          &quot;advanced&quot; toggle if you want to browse the pngs directly —
-          it&apos;s already referenced inside every metadata json, so most
-          people never need it.
+        <p style={{ marginTop: 10 }}>
+          <strong style={{ color: 'var(--mint-hot)' }}>download bundle</strong> — grab a single zip you can host
+          anywhere (S3, arweave, your own gateway, whatever). inside you get{' '}
+          <span className="uru-num">images/</span>, <span className="uru-num">metadata/</span>, and a{' '}
+          <span className="uru-num">README.txt</span> explaining how to rewrite the image URL prefix after upload.
+          set the prefix before you download if you already know where images are going, or leave the placeholder
+          and find-and-replace later.
         </p>
-        <p style={{ marginTop: 8 }}>
-          copy the CID as <span className="uru-num">ipfs://…</span> or open it
-          through a gateway to preview the folder. that&apos;s it — your
-          collection lives on the network づ｡◕‿‿◕｡)づ
+        <p style={{ marginTop: 10, color: 'var(--anchor-soft)', fontFamily: 'var(--font-round), Klee One, cursive' }}>
+          nothing leaves your browser until you press one of these buttons ｡◕‿‿◕｡
         </p>
       </>
     ),
@@ -304,7 +303,7 @@ export default function HowToPage() {
             }}
           >
             eight little steps — drop your art, tune the weights, generate up to 10,000 tokens right in your browser,
-            review and rework any of them, and publish the whole set to IPFS with a click. no wallet needed to create ✿
+            review and rework any of them, then publish to IPFS or download a zip you host yourself. no wallet needed to create ✿
           </p>
           <div
             className="uru-shell-inner"
@@ -364,6 +363,7 @@ export default function HowToPage() {
             </span>
             <span className="uru-stamp uru-stamp-yolk">ERC-721 metadata</span>
             <span className="uru-stamp uru-stamp-pink">IPFS ready</span>
+            <span className="uru-stamp uru-stamp-mint">or download zip</span>
           </div>
         </div>
       </section>
@@ -495,6 +495,10 @@ export default function HowToPage() {
             {
               q: 'do i need a wallet to create?',
               a: 'no wallet needed to design or generate. you only need one later when a launchpad or contract asks you to plug in the metadata CID.',
+            },
+            {
+              q: 'do i have to use ipfs?',
+              a: "nope. hit Download bundle ✿ instead and you get a zip with images/, metadata/, and a README. host it anywhere you like — s3, arweave, your own gateway. the README shows exactly how to swap the image URL prefix in every metadata json after you upload.",
             },
             {
               q: 'what happens if i close the tab mid-generate?',

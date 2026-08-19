@@ -9,7 +9,7 @@
 import { useSyncExternalStore } from 'react';
 
 import type { CollectionRules } from '@/lib/art-generator/rules';
-import { normalizeCollectionRules, rollFromTemplate, pickWeightedTrait } from '@/lib/art-generator/rules';
+import { normalizeCollectionRules, rollFromTemplate } from '@/lib/art-generator/rules';
 import { hydrateLayersForRender, renderToken } from '@/lib/art-generator/pure/render-token';
 import type { PreviewEffect } from '@/lib/art-generator/canvas-filters';
 import { normalizePreviewEffects } from '@/lib/art-generator/canvas-filters';
@@ -694,12 +694,6 @@ class AssetStoreClient {
         layerExclusions: normalized.layerExclusions,
       });
       if (Object.keys(rolled.selection).length === 0) continue;
-      for (const layer of library.layers) {
-        if (!rolled.selection[layer.id] && layer.traits.length > 0) {
-          const picked = pickWeightedTrait(layer.traits, weights);
-          if (picked) rolled.selection[layer.id] = picked.id;
-        }
-      }
       signature = library.layers
         .map((layer) => {
           const traitId = rolled.selection[layer.id];

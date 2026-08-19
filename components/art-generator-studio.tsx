@@ -35,6 +35,7 @@ import { UploadDropzone } from '@/components/upload-dropzone';
 import { CollectionGenerator } from '@/components/collection-generator';
 import { CollectionBrowser } from '@/components/collection-browser';
 import { IpfsPushPanel } from '@/components/ipfs-push-panel';
+import { DownloadPanel } from '@/components/download-panel';
 import { StudioSteps } from '@/components/studio-steps';
 
 interface LoadableState {
@@ -2167,6 +2168,8 @@ export function ArtGeneratorStudio() {
       />
 
       <CollectionBrowser library={library} rules={rules} weights={traitWeights} />
+
+      <DownloadPanel outputCount={outputCount} />
 
       <IpfsPushPanel outputCount={outputCount} />
 
