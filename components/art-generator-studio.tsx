@@ -1121,7 +1121,7 @@ export function ArtGeneratorStudio() {
                             if (!selectedTrait || !library) return <span className="layer-trait-thumb-empty">—</span>;
                             const src = buildAssetUrl(library.rootDir, selectedTrait);
                             return src ? (
-                              <img alt={`${layer.name}: ${selectedTrait.name}`} src={src} />
+                              <img alt={`${layer.name}: ${selectedTrait.name}`} src={src} loading="lazy" decoding="async" />
                             ) : (
                               <span className="layer-trait-thumb-empty">…</span>
                             );
@@ -1352,7 +1352,7 @@ export function ArtGeneratorStudio() {
                       const weightsThumbSrc = buildAssetUrl(library!.rootDir, trait);
                       return (
                         <li className="weights-trait-row" key={trait.relativePath}>
-                          {weightsThumbSrc ? <img alt={trait.name} className="weights-trait-thumb" src={weightsThumbSrc} /> : <span className="weights-trait-thumb" aria-hidden />}
+                          {weightsThumbSrc ? <img alt={trait.name} className="weights-trait-thumb" src={weightsThumbSrc} loading="lazy" decoding="async" /> : <span className="weights-trait-thumb" aria-hidden />}
                           <span className="weights-trait-name">{trait.name}</span>
                           <input
                             className="uru-input"
@@ -1744,7 +1744,7 @@ export function ArtGeneratorStudio() {
                                   {(() => {
                                     if (!library) return null;
                                     const s = buildAssetUrl(library.rootDir, trait);
-                                    return s ? <img alt={trait.name} className="template-trait-subset-thumb" src={s} /> : null;
+                                    return s ? <img alt={trait.name} className="template-trait-subset-thumb" src={s} loading="lazy" decoding="async" /> : null;
                                   })()}
                                   <span>{trait.name}</span>
                                 </label>
@@ -1830,7 +1830,7 @@ export function ArtGeneratorStudio() {
                         {(() => {
                           if (!library || !aTrait) return null;
                           const s = buildAssetUrl(library.rootDir, aTrait);
-                          return s ? <img alt={aTrait.name} src={s} className="trait-pair-thumb" /> : null;
+                          return s ? <img alt={aTrait.name} src={s} className="trait-pair-thumb" loading="lazy" decoding="async" /> : null;
                         })()}
                         <div>
                           <strong>{aTrait?.name ?? pair.a}</strong>
@@ -1842,7 +1842,7 @@ export function ArtGeneratorStudio() {
                         {(() => {
                           if (!library || !bTrait) return null;
                           const s = buildAssetUrl(library.rootDir, bTrait);
-                          return s ? <img alt={bTrait.name} src={s} className="trait-pair-thumb" /> : null;
+                          return s ? <img alt={bTrait.name} src={s} className="trait-pair-thumb" loading="lazy" decoding="async" /> : null;
                         })()}
                         <div>
                           <strong>{bTrait?.name ?? pair.b}</strong>

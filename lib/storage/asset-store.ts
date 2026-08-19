@@ -145,10 +145,24 @@ class AssetStoreClient {
   private projects: StoredProject[] = [];
   private activeId: string | null = null;
   private urlCache = new Map<string, { url: string; version: number }>();
+  private urlLoads = new Map<string, Promise<void>>();
   private listeners = new Set<Listener>();
+  private notifyScheduled = false;
 
   private notify(): void {
     for (const listener of this.listeners) listener();
+  }
+
+  // Coalesce bursts of async URL-cache fills (opening a 800-trait picker fires
+  // one notify per finished blob → one global re-render per notify → each panel
+  // re-iterates every trait). One tick, one notify.
+  private notifyBatched(): void {
+    if (this.notifyScheduled) return;
+    this.notifyScheduled = true;
+    queueMicrotask(() => {
+      this.notifyScheduled = false;
+      this.notify();
+    });
   }
 
   subscribe = (listener: Listener): (() => void) => {
@@ -879,13 +893,20 @@ class AssetStoreClient {
     }
     // Lazy-load the object URL. Returns empty for the first render; refreshes
     // on the next render (via subscription bump) once the blob URL is ready.
-    void (async () => {
-      const blob = await opfs.getBlob(trait.blobPath);
-      if (!blob) return;
-      const url = URL.createObjectURL(blob);
-      this.urlCache.set(trait.blobPath, { url, version: trait.version });
-      this.notify();
-    })();
+    // De-dupe concurrent asks for the same blob so a picker with N panels
+    // subscribed doesn't fire N OPFS reads for the same trait.
+    if (!this.urlLoads.has(trait.blobPath)) {
+      const load = (async () => {
+        const blob = await opfs.getBlob(trait.blobPath);
+        if (!blob) return;
+        const url = URL.createObjectURL(blob);
+        this.urlCache.set(trait.blobPath, { url, version: trait.version });
+        this.notifyBatched();
+      })().finally(() => {
+        this.urlLoads.delete(trait.blobPath);
+      });
+      this.urlLoads.set(trait.blobPath, load);
+    }
     return cached?.url ?? '';
   }
 
