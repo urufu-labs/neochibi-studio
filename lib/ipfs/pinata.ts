@@ -59,11 +59,12 @@ async function pinDirectoryScoped(
   folderName: string,
 ): Promise<string> {
   const form = new FormData();
-  for (const file of files) form.append('file', file.blob, file.name);
-  form.append(
-    'pinataOptions',
-    JSON.stringify({ cidVersion: 1, wrapWithDirectory: true }),
-  );
+  // Pinata infers directory-mode from a shared path prefix. Sending flat
+  // filenames trips "More than one file and/or directory was provided for
+  // pinning"; prefixing every entry with the folder root wraps them into
+  // one directory automatically.
+  for (const file of files) form.append('file', file.blob, `${folderName}/${file.name}`);
+  form.append('pinataOptions', JSON.stringify({ cidVersion: 1 }));
   form.append('pinataMetadata', JSON.stringify({ name: folderName }));
 
   const response = await fetch('https://api.pinata.cloud/pinning/pinFileToIPFS', {

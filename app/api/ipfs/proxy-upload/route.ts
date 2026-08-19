@@ -33,14 +33,13 @@ export async function POST(request: Request) {
 
     const upstream = new FormData();
     for (const file of files) {
-      // Preserve original filename; Pinata treats each file with the same
-      // field name as a member of a wrapped directory.
-      upstream.append('file', file, file.name);
+      // Pinata infers a directory from a shared path prefix. Multiple flat
+      // filenames trigger "More than one file and/or directory was provided
+      // for pinning"; prefixing every entry with the same root folds them
+      // into one wrapped directory.
+      upstream.append('file', file, `${folderName}/${file.name}`);
     }
-    upstream.append(
-      'pinataOptions',
-      JSON.stringify({ cidVersion: 1, wrapWithDirectory: true }),
-    );
+    upstream.append('pinataOptions', JSON.stringify({ cidVersion: 1 }));
     upstream.append('pinataMetadata', JSON.stringify({ name: folderName }));
 
     const response = await fetch('https://api.pinata.cloud/pinning/pinFileToIPFS', {
