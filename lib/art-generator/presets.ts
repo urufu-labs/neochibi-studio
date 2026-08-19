@@ -124,6 +124,7 @@ export function hydrateSavedConfig(config: SavedGeneratorConfig, library: TraitL
       ),
     },
     traitPairs: rules.traitPairs.filter((p) => validTraitPaths.has(p.a) && validTraitPaths.has(p.b)),
+    traitConflicts: rules.traitConflicts.filter((c) => validTraitPaths.has(c.a) && validTraitPaths.has(c.b)),
     layerExclusions: rules.layerExclusions
       .map((rule) => ({
         sourceLayerId: rule.sourceLayerId,

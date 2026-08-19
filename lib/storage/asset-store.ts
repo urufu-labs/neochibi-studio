@@ -705,6 +705,7 @@ class AssetStoreClient {
       attempt += 1;
       const rolled = rollFromTemplate(library.layers, normalized.template, weights, Math.random, {
         traitPairs: normalized.traitPairs,
+        traitConflicts: normalized.traitConflicts,
         layerExclusions: normalized.layerExclusions,
       });
       if (Object.keys(rolled.selection).length === 0) continue;
@@ -794,6 +795,7 @@ class AssetStoreClient {
       exclusionSourceCount: number;
       exclusionTargetCount: number;
       traitPairsAffected: number;
+      traitConflictsAffected: number;
       configReferences: number;
     };
   }> {
@@ -809,6 +811,7 @@ class AssetStoreClient {
           exclusionSourceCount: 0,
           exclusionTargetCount: 0,
           traitPairsAffected: 0,
+          traitConflictsAffected: 0,
           configReferences: 0,
         },
       };
@@ -819,6 +822,7 @@ class AssetStoreClient {
     let exclusionSourceCount = 0;
     let exclusionTargetCount = 0;
     let traitPairsAffected = 0;
+    let traitConflictsAffected = 0;
     const traitPaths = new Set(layer.traits.map((trait) => `${layer.directoryName}/${trait.fileName}`));
     for (const config of project.configs) {
       if (config.layerOrder.includes(layer.id) || config.selectedTraits[layer.id]) configReferences += 1;
@@ -832,6 +836,9 @@ class AssetStoreClient {
       for (const pair of rules.traitPairs) {
         if (traitPaths.has(pair.a) || traitPaths.has(pair.b)) traitPairsAffected += 1;
       }
+      for (const conflict of rules.traitConflicts) {
+        if (traitPaths.has(conflict.a) || traitPaths.has(conflict.b)) traitConflictsAffected += 1;
+      }
     }
     return {
       layer: toTraitLayer(layer),
@@ -842,6 +849,7 @@ class AssetStoreClient {
         exclusionSourceCount,
         exclusionTargetCount,
         traitPairsAffected,
+        traitConflictsAffected,
         configReferences,
       },
     };
@@ -851,6 +859,7 @@ class AssetStoreClient {
     weightSet: boolean;
     excludedInRules: boolean;
     traitPairsAffected: number;
+    traitConflictsAffected: number;
     selectedInConfigs: number;
   }> {
     const project = await this.ensureDefaultProject();
@@ -858,6 +867,7 @@ class AssetStoreClient {
     let weightSet = false;
     let excludedInRules = false;
     let traitPairsAffected = 0;
+    let traitConflictsAffected = 0;
     let selectedInConfigs = 0;
     if (found) {
       weightSet = (found.trait.weight ?? DEFAULT_TRAIT_WEIGHT) !== DEFAULT_TRAIT_WEIGHT;
@@ -868,9 +878,12 @@ class AssetStoreClient {
         for (const pair of rules.traitPairs) {
           if (pair.a === relativePath || pair.b === relativePath) traitPairsAffected += 1;
         }
+        for (const conflict of rules.traitConflicts) {
+          if (conflict.a === relativePath || conflict.b === relativePath) traitConflictsAffected += 1;
+        }
       }
     }
-    return { weightSet, excludedInRules, traitPairsAffected, selectedInConfigs };
+    return { weightSet, excludedInRules, traitPairsAffected, traitConflictsAffected, selectedInConfigs };
   }
 
   // ---------- Asset URL cache ----------

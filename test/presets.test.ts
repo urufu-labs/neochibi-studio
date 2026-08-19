@@ -72,6 +72,7 @@ test('hydrateSavedConfig drops layers and traits that no longer exist', () => {
     rules: {
       template: { alwaysLayerIds: [], neverLayerIds: [], excludedTraitPaths: [] },
       traitPairs: [],
+      traitConflicts: [],
       layerExclusions: [],
     },
     updatedAt: new Date().toISOString(),

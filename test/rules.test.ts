@@ -96,6 +96,75 @@ test('rollFromTemplate applies trait pairs bidirectionally', () => {
   assert.equal(selection.body, b.id);
 });
 
+test('rollFromTemplate drops the b-side when a trait conflict fires', () => {
+  const a = sampleLayers[0].traits[0]; // bg-dawn
+  const bConflicts = sampleLayers[1].traits[0]; // body-cream — the b-side
+  const weights = {
+    [sampleLayers[0].traits[0].relativePath]: 1,
+    [sampleLayers[0].traits[1].relativePath]: 0,
+    [sampleLayers[1].traits[0].relativePath]: 1,
+    [sampleLayers[1].traits[1].relativePath]: 1,
+  };
+  // Deterministic RNG: bg pick, body pick, conflict re-roll. All near-zero
+  // so pickWeightedTrait returns the first eligible in each pool.
+  const rng = sequenceRng([0.1, 0.1, 0.1]);
+  const { selection } = rollFromTemplate(
+    sampleLayers,
+    { alwaysLayerIds: [], neverLayerIds: [], excludedTraitPaths: [] },
+    weights,
+    rng,
+    { traitConflicts: [{ a: a.relativePath, b: bConflicts.relativePath }] },
+  );
+  assert.equal(selection.background, a.id);
+  assert.equal(selection.body, sampleLayers[1].traits[1].id);
+});
+
+test('rollFromTemplate drops b entirely when no other traits are eligible', () => {
+  const a = sampleLayers[0].traits[0]; // bg-dawn
+  const b = sampleLayers[1].traits[0]; // body-cream
+  const weights = {
+    [sampleLayers[0].traits[0].relativePath]: 1,
+    [sampleLayers[0].traits[1].relativePath]: 0,
+    [sampleLayers[1].traits[0].relativePath]: 1,
+    [sampleLayers[1].traits[1].relativePath]: 0,
+  };
+  // Exclude ghost so cream is the only body option — the conflict has no
+  // room to re-roll and must drop the body slot outright.
+  const { selection } = rollFromTemplate(
+    sampleLayers,
+    {
+      alwaysLayerIds: [],
+      neverLayerIds: [],
+      excludedTraitPaths: [sampleLayers[1].traits[1].relativePath],
+    },
+    weights,
+    Math.random,
+    { traitConflicts: [{ a: a.relativePath, b: b.relativePath }] },
+  );
+  assert.equal(selection.background, a.id);
+  assert.equal(selection.body, undefined);
+});
+
+test('rollFromTemplate leaves a conflict alone when only one side rolled', () => {
+  const a = sampleLayers[0].traits[0]; // bg-dawn — not selected
+  const b = sampleLayers[1].traits[0]; // body-cream — selected
+  const weights = {
+    [sampleLayers[0].traits[0].relativePath]: 0,
+    [sampleLayers[0].traits[1].relativePath]: 1,
+    [sampleLayers[1].traits[0].relativePath]: 1,
+    [sampleLayers[1].traits[1].relativePath]: 0,
+  };
+  const { selection } = rollFromTemplate(
+    sampleLayers,
+    { alwaysLayerIds: [], neverLayerIds: [], excludedTraitPaths: [] },
+    weights,
+    Math.random,
+    { traitConflicts: [{ a: a.relativePath, b: b.relativePath }] },
+  );
+  assert.equal(selection.background, sampleLayers[0].traits[1].id);
+  assert.equal(selection.body, b.id);
+});
+
 test('rollFromTemplate applies layerExclusions when source layer rolls', () => {
   const { selection } = rollFromTemplate(
     sampleLayers,
@@ -260,6 +329,7 @@ test('simulateCollection hits target uniques when capacity is sufficient', () =>
   const rules = {
     template: { alwaysLayerIds: [], neverLayerIds: [], excludedTraitPaths: [] },
     traitPairs: [],
+    traitConflicts: [],
     layerExclusions: [],
   };
   const result = simulateCollection({
@@ -278,6 +348,7 @@ test('simulateCollection caps attempts when target is unreachable', () => {
   const rules = {
     template: { alwaysLayerIds: [], neverLayerIds: ['background', 'body', 'hat'], excludedTraitPaths: [] },
     traitPairs: [],
+    traitConflicts: [],
     layerExclusions: [],
   };
   const result = simulateCollection({
@@ -295,6 +366,7 @@ test('normalizeCollectionRules falls back to defaults on garbage input', () => {
   const normalized = normalizeCollectionRules(undefined);
   assert.deepEqual(normalized.template, DEFAULT_RULES.template);
   assert.deepEqual(normalized.traitPairs, []);
+  assert.deepEqual(normalized.traitConflicts, []);
   assert.deepEqual(normalized.layerExclusions, []);
 });
 
@@ -314,6 +386,7 @@ test('normalizeCollectionRules migrates legacy A/B shape by preferring templateA
     },
     templateAWeight: 60,
     traitPairs: [],
+    traitConflicts: [],
     layerExclusions: [],
   };
   const normalized = normalizeCollectionRules(legacy);
@@ -334,6 +407,7 @@ test('normalizeCollectionRules falls back to templateB when templateA is absent'
     },
     templateAWeight: 40,
     traitPairs: [],
+    traitConflicts: [],
     layerExclusions: [],
   };
   const normalized = normalizeCollectionRules(legacy);
@@ -351,6 +425,19 @@ test('normalizeCollectionRules dedupes trait pairs and rejects self-pairs', () =
   });
   assert.equal(normalized.traitPairs.length, 1);
   assert.deepEqual(normalized.traitPairs[0], { a: 'x.png', b: 'y.png' });
+});
+
+test('normalizeCollectionRules dedupes trait conflicts symmetrically', () => {
+  const normalized = normalizeCollectionRules({
+    traitConflicts: [
+      { a: 'hat.png', b: 'glasses.png' },
+      { a: 'glasses.png', b: 'hat.png' },
+      { a: 'same.png', b: 'same.png' },
+      { a: '', b: 'q.png' },
+    ],
+  });
+  assert.equal(normalized.traitConflicts.length, 1);
+  assert.deepEqual(normalized.traitConflicts[0], { a: 'hat.png', b: 'glasses.png' });
 });
 
 test('normalizeCollectionRules merges layer exclusions by source', () => {

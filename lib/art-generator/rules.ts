@@ -21,6 +21,16 @@ export interface TraitPair {
   b: string;
 }
 
+// Conditional per-trait ban. When both `a` and `b` are selected in a roll,
+// `b` is dropped from the selection and its layer is re-rolled excluding `b`
+// (falling out entirely if nothing else is eligible). Bidirectional in that
+// order matters only for which side "loses" — pick whichever side you want
+// to give up when the two collide (e.g. glasses that clip a specific hat).
+export interface TraitConflict {
+  a: string;
+  b: string;
+}
+
 export interface LayerExclusion {
   sourceLayerId: string;
   excludeLayerIds: string[];
@@ -29,12 +39,14 @@ export interface LayerExclusion {
 export interface CollectionRules {
   template: CollectionTemplate;
   traitPairs: TraitPair[];
+  traitConflicts: TraitConflict[];
   layerExclusions: LayerExclusion[];
 }
 
 export const DEFAULT_RULES: CollectionRules = {
   template: { alwaysLayerIds: [], neverLayerIds: [], excludedTraitPaths: [], layerRules: [] },
   traitPairs: [],
+  traitConflicts: [],
   layerExclusions: [],
 };
 
@@ -43,6 +55,7 @@ export function normalizeCollectionRules(input: unknown): CollectionRules {
     return {
       template: normalizeTemplate(DEFAULT_RULES.template),
       traitPairs: [],
+      traitConflicts: [],
       layerExclusions: [],
     };
   }
@@ -63,6 +76,7 @@ export function normalizeCollectionRules(input: unknown): CollectionRules {
   return {
     template,
     traitPairs: normalizeTraitPairs(candidate.traitPairs),
+    traitConflicts: normalizeTraitConflicts(candidate.traitConflicts),
     layerExclusions: normalizeLayerExclusions(candidate.layerExclusions),
   };
 }
@@ -130,6 +144,25 @@ function normalizeTraitPairs(input: unknown): TraitPair[] {
   return out;
 }
 
+function normalizeTraitConflicts(input: unknown): TraitConflict[] {
+  if (!Array.isArray(input)) return [];
+  const seen = new Set<string>();
+  const out: TraitConflict[] = [];
+  for (const entry of input) {
+    if (!entry || typeof entry !== 'object') continue;
+    const a = String((entry as Partial<TraitConflict>).a ?? '').trim();
+    const b = String((entry as Partial<TraitConflict>).b ?? '').trim();
+    if (!a || !b || a === b) continue;
+    // Unordered dedupe — conflicts collide symmetrically even though `b` is
+    // the deterministic loser at roll time.
+    const key = a < b ? `${a}|${b}` : `${b}|${a}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push({ a, b });
+  }
+  return out;
+}
+
 function normalizeLayerExclusions(input: unknown): LayerExclusion[] {
   if (!Array.isArray(input)) return [];
   const merged = new Map<string, Set<string>>();
@@ -187,6 +220,7 @@ export function pickWeightedTrait(
 
 export interface RollOptions {
   traitPairs?: TraitPair[];
+  traitConflicts?: TraitConflict[];
   layerExclusions?: LayerExclusion[];
 }
 
@@ -228,6 +262,15 @@ export function rollFromTemplate(
   }
 
   applyTraitPairs(selection, layers, options.traitPairs ?? [], never, excludedTraitPaths);
+  applyTraitConflicts(
+    selection,
+    layers,
+    options.traitConflicts ?? [],
+    weights,
+    excludedTraitPaths,
+    never,
+    rng,
+  );
   applyTemplateLayerRuleExclusions(selection, layerRules);
   applyLayerExclusions(selection, options.layerExclusions ?? []);
 
@@ -272,6 +315,72 @@ function applyTraitPairs(
         selection[aInfo.layerId] = aInfo.traitId;
       }
     }
+  }
+}
+
+function applyTraitConflicts(
+  selection: Record<string, string>,
+  layers: TraitLayer[],
+  conflicts: TraitConflict[],
+  weights: TraitWeights,
+  excludedTraitPaths: Set<string>,
+  never: Set<string>,
+  rng: () => number,
+): void {
+  if (conflicts.length === 0) return;
+  const pathLookup = new Map<string, { layerId: string; traitId: string }>();
+  const traitIdToPath = new Map<string, string>();
+  const layerLookup = new Map<string, TraitLayer>();
+  for (const layer of layers) {
+    layerLookup.set(layer.id, layer);
+    for (const trait of layer.traits) {
+      pathLookup.set(trait.relativePath, { layerId: layer.id, traitId: trait.id });
+      traitIdToPath.set(trait.id, trait.relativePath);
+    }
+  }
+
+  // A resolution can cascade into another conflict. Bounded retries keep it
+  // stable without letting a bad rule set spin the roller forever.
+  const maxPasses = Math.min(conflicts.length + 1, 8);
+  for (let pass = 0; pass < maxPasses; pass += 1) {
+    let changed = false;
+    for (const conflict of conflicts) {
+      const aInfo = pathLookup.get(conflict.a);
+      const bInfo = pathLookup.get(conflict.b);
+      if (!aInfo || !bInfo) continue;
+      const selectedAPath = traitIdToPath.get(selection[aInfo.layerId] ?? '') ?? null;
+      const selectedBPath = traitIdToPath.get(selection[bInfo.layerId] ?? '') ?? null;
+      if (selectedAPath !== conflict.a || selectedBPath !== conflict.b) continue;
+      // Both sides fired at once. `b` is the deterministic loser — the user
+      // chose the order, so which trait yields is under their control.
+      if (never.has(bInfo.layerId)) {
+        delete selection[bInfo.layerId];
+        changed = true;
+        continue;
+      }
+      const layer = layerLookup.get(bInfo.layerId);
+      if (!layer) {
+        delete selection[bInfo.layerId];
+        changed = true;
+        continue;
+      }
+      const eligible = layer.traits.filter(
+        (trait) => trait.relativePath !== conflict.b && !excludedTraitPaths.has(trait.relativePath),
+      );
+      if (eligible.length === 0) {
+        delete selection[bInfo.layerId];
+        changed = true;
+        continue;
+      }
+      const picked = pickWeightedTrait(eligible, weights, rng);
+      if (picked) {
+        selection[bInfo.layerId] = picked.id;
+      } else {
+        delete selection[bInfo.layerId];
+      }
+      changed = true;
+    }
+    if (!changed) break;
   }
 }
 
@@ -373,6 +482,7 @@ export function simulateCollection({
 
   const rollOptions: RollOptions = {
     traitPairs: rules.traitPairs ?? [],
+    traitConflicts: rules.traitConflicts ?? [],
     layerExclusions: rules.layerExclusions ?? [],
   };
 

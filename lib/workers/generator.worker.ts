@@ -144,6 +144,7 @@ async function runGeneration(message: GeneratorStartMessage): Promise<void> {
       }));
       const { selection } = rollFromTemplate(layerAssets, rules.template, message.weights, rng, {
         traitPairs: rules.traitPairs,
+        traitConflicts: rules.traitConflicts,
         layerExclusions: rules.layerExclusions,
       });
       // Guarantee at least one layer picked (otherwise skip).

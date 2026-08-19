@@ -189,6 +189,7 @@ export function ArtGeneratorStudio() {
   const [rules, setRules] = useState<CollectionRules>(() => ({
     template: { ...DEFAULT_RULES.template, excludedTraitPaths: [], layerRules: [] },
     traitPairs: [],
+    traitConflicts: [],
     layerExclusions: [],
   }));
   const [traitWeights, setTraitWeights] = useState<TraitWeights>({});
@@ -221,12 +222,15 @@ export function ArtGeneratorStudio() {
 
   const [pairDraftA, setPairDraftA] = useState('');
   const [pairDraftB, setPairDraftB] = useState('');
+  const [conflictDraftA, setConflictDraftA] = useState('');
+  const [conflictDraftB, setConflictDraftB] = useState('');
   const [exclusionDraftSource, setExclusionDraftSource] = useState('');
 
   type StudioTab = 'library' | 'templates' | null;
   const [activeTab, setActiveTab] = useState<StudioTab>(null);
   const [collapsedLayerRules, setCollapsedLayerRules] = useState(false);
   const [collapsedPairs, setCollapsedPairs] = useState(true);
+  const [collapsedConflicts, setCollapsedConflicts] = useState(true);
   const [collapsedExclusions, setCollapsedExclusions] = useState(true);
   const [collapsedStats, setCollapsedStats] = useState(true);
   const [gallerySeeds, setGallerySeeds] = useState<Array<{ selection: Record<string, string>; presetId: string | null }>>([]);
@@ -553,6 +557,24 @@ export function ArtGeneratorStudio() {
     }));
   }
 
+  function addTraitConflict(a: string, b: string) {
+    if (!a || !b || a === b) return;
+    setRules((current) => {
+      const exists = current.traitConflicts.some(
+        (conflict) => (conflict.a === a && conflict.b === b) || (conflict.a === b && conflict.b === a),
+      );
+      if (exists) return current;
+      return { ...current, traitConflicts: [...current.traitConflicts, { a, b }] };
+    });
+  }
+
+  function removeTraitConflict(index: number) {
+    setRules((current) => ({
+      ...current,
+      traitConflicts: current.traitConflicts.filter((_, i) => i !== index),
+    }));
+  }
+
   function setLayerExclusion(sourceLayerId: string, excludeLayerIds: string[]) {
     setRules((current) => {
       const filtered = current.layerExclusions.filter((rule) => rule.sourceLayerId !== sourceLayerId);
@@ -593,6 +615,7 @@ export function ArtGeneratorStudio() {
     setActiveGalleryTileIndex(null);
     const { selection } = rollFromTemplate(library.layers, rules.template, traitWeights, Math.random, {
       traitPairs: rules.traitPairs,
+      traitConflicts: rules.traitConflicts,
       layerExclusions: rules.layerExclusions,
     });
     setSelectedTraits(buildPreviewSelectionFromGallerySeed(library.layers, selection));
@@ -630,6 +653,7 @@ export function ArtGeneratorStudio() {
     const next = Array.from({ length: count }, () => {
       const { selection } = rollFromTemplate(library.layers, rules.template, traitWeights, Math.random, {
         traitPairs: rules.traitPairs,
+        traitConflicts: rules.traitConflicts,
         layerExclusions: rules.layerExclusions,
       });
       const preset = PREVIEW_EFFECT_PRESETS.length > 0
@@ -777,6 +801,7 @@ export function ArtGeneratorStudio() {
     if (r.exclusionSourceCount > 0) summary.push(`${r.exclusionSourceCount} layer-exclusion rule${r.exclusionSourceCount === 1 ? '' : 's'} source this layer.`);
     if (r.exclusionTargetCount > 0) summary.push(`${r.exclusionTargetCount} rule${r.exclusionTargetCount === 1 ? '' : 's'} exclude this layer as a target.`);
     if (r.traitPairsAffected > 0) summary.push(`${r.traitPairsAffected} trait pair${r.traitPairsAffected === 1 ? '' : 's'} reference these traits.`);
+    if (r.traitConflictsAffected > 0) summary.push(`${r.traitConflictsAffected} trait conflict${r.traitConflictsAffected === 1 ? '' : 's'} reference these traits.`);
     if (r.configReferences > 0) summary.push(`${r.configReferences} saved config${r.configReferences === 1 ? '' : 's'} reference this layer.`);
     if (summary.length === 1) summary.push('No rules currently reference this layer.');
 
@@ -817,6 +842,7 @@ export function ArtGeneratorStudio() {
     if (impact.weightSet) summary.push('Trait has a custom rarity weight.');
     if (impact.excludedInRules) summary.push('Trait is on the excluded-traits list.');
     if (impact.traitPairsAffected > 0) summary.push(`${impact.traitPairsAffected} trait pair rule${impact.traitPairsAffected === 1 ? '' : 's'} reference this trait.`);
+    if (impact.traitConflictsAffected > 0) summary.push(`${impact.traitConflictsAffected} trait conflict rule${impact.traitConflictsAffected === 1 ? '' : 's'} reference this trait.`);
     if (impact.selectedInConfigs > 0) summary.push(`${impact.selectedInConfigs} saved config${impact.selectedInConfigs === 1 ? '' : 's'} currently select this trait.`);
     if (summary.length === 0) summary.push('No rules currently reference this trait.');
 
@@ -1853,6 +1879,109 @@ export function ArtGeneratorStudio() {
                         type="button"
                         className="uru-btn uru-btn-danger danger-button"
                         onClick={() => removeTraitPair(index)}
+                      >
+                        Remove
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+            </>) : null}
+          </div>
+        ) : null}
+
+        {orderedLayers.length > 0 ? (
+          <div className="uru-shell-inner rules-card">
+            <div className="panel-header compact-panel-header panel-header-collapsible">
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <h3 className="uru-h2" style={{ fontSize: 16 }}>Trait conflicts</h3>
+                <p style={{ margin: '4px 0 0', color: 'var(--anchor-soft)', fontFamily: 'var(--font-round), Klee One, cursive', fontSize: 13 }}>&quot;Doesn&apos;t mix with.&quot; If A and B both roll, B is dropped and its layer re-rolls (excluding B). Use for pairs that clip — e.g. specific hats and glasses.</p>
+              </div>
+              <button
+                type="button"
+                className="uru-chip panel-minimize"
+                aria-label={collapsedConflicts ? 'Expand trait conflicts' : 'Minimize trait conflicts'}
+                aria-expanded={!collapsedConflicts}
+                onClick={() => setCollapsedConflicts((v) => !v)}
+              >
+                {collapsedConflicts ? '＋' : '−'}
+              </button>
+            </div>
+            {!collapsedConflicts ? (<>
+            <div className="trait-pair-add">
+              <select className="uru-input" value={conflictDraftA} onChange={(event) => setConflictDraftA(event.target.value)}>
+                <option value="">— pick trait A —</option>
+                {orderedLayers.map((layer) => (
+                  <optgroup key={layer.id} label={layer.name}>
+                    {layer.traits.map((trait) => (
+                      <option key={trait.relativePath} value={trait.relativePath}>{trait.name}</option>
+                    ))}
+                  </optgroup>
+                ))}
+              </select>
+              <span className="pair-arrow" aria-hidden>✕</span>
+              <select className="uru-input" value={conflictDraftB} onChange={(event) => setConflictDraftB(event.target.value)}>
+                <option value="">— pick trait B (dropped on collision) —</option>
+                {orderedLayers.map((layer) => (
+                  <optgroup key={layer.id} label={layer.name}>
+                    {layer.traits.map((trait) => (
+                      <option key={trait.relativePath} value={trait.relativePath}>{trait.name}</option>
+                    ))}
+                  </optgroup>
+                ))}
+              </select>
+              <button
+                type="button"
+                className="uru-btn uru-btn-primary"
+                disabled={!conflictDraftA || !conflictDraftB || conflictDraftA === conflictDraftB}
+                onClick={() => {
+                  addTraitConflict(conflictDraftA, conflictDraftB);
+                  setConflictDraftA('');
+                  setConflictDraftB('');
+                }}
+              >
+                Add conflict
+              </button>
+            </div>
+            {rules.traitConflicts.length === 0 ? (
+              <div className="uru-bubble empty-state">No conflicts yet.</div>
+            ) : (
+              <ul className="trait-pair-list">
+                {rules.traitConflicts.map((conflict, index) => {
+                  const aLayer = orderedLayers.find((layer) => layer.traits.some((t) => t.relativePath === conflict.a));
+                  const aTrait = aLayer?.traits.find((t) => t.relativePath === conflict.a) ?? null;
+                  const bLayer = orderedLayers.find((layer) => layer.traits.some((t) => t.relativePath === conflict.b));
+                  const bTrait = bLayer?.traits.find((t) => t.relativePath === conflict.b) ?? null;
+                  return (
+                    <li className="trait-pair-row" key={`${conflict.a}|${conflict.b}`}>
+                      <div className="trait-pair-side">
+                        {(() => {
+                          if (!library || !aTrait) return null;
+                          const s = buildAssetUrl(library.rootDir, aTrait);
+                          return s ? <img alt={aTrait.name} src={s} className="trait-pair-thumb" loading="lazy" decoding="async" /> : null;
+                        })()}
+                        <div>
+                          <strong>{aTrait?.name ?? conflict.a}</strong>
+                          <span className="uru-eyebrow preset-meta">{aLayer?.name ?? '?'}</span>
+                        </div>
+                      </div>
+                      <span className="pair-arrow" aria-hidden>✕</span>
+                      <div className="trait-pair-side">
+                        {(() => {
+                          if (!library || !bTrait) return null;
+                          const s = buildAssetUrl(library.rootDir, bTrait);
+                          return s ? <img alt={bTrait.name} src={s} className="trait-pair-thumb" loading="lazy" decoding="async" /> : null;
+                        })()}
+                        <div>
+                          <strong>{bTrait?.name ?? conflict.b}</strong>
+                          <span className="uru-eyebrow preset-meta">{bLayer?.name ?? '?'} · dropped</span>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        className="uru-btn uru-btn-danger danger-button"
+                        onClick={() => removeTraitConflict(index)}
                       >
                         Remove
                       </button>

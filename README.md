@@ -111,6 +111,7 @@ rules live in [`lib/art-generator/rules.ts`](lib/art-generator/rules.ts):
 interface CollectionRules {
   template: CollectionTemplate;
   traitPairs: TraitPair[];
+  traitConflicts: TraitConflict[];
   layerExclusions: LayerExclusion[];
 }
 
@@ -129,6 +130,8 @@ interface CollectionTemplate {
 global (shared) rules:
 
 - **trait pairs** — when trait A rolls, force trait B (and vice versa).
+- **trait conflicts** — when trait A and trait B both roll, drop B and
+  re-roll B's layer (excluding B). "doesn't mix with" for pairs that clip.
 - **layer exclusions** — when a source layer rolls anything, skip these
   target layers.
 
