@@ -38,7 +38,7 @@ export function IpfsPushPanel({ outputCount }: IpfsPushPanelProps) {
   useAssetStoreVersion();
   const [state, setState] = useState<PinState>(INITIAL);
   const abortRef = useRef(false);
-  const [meta, setMeta] = useState<{ collectionName: string; description: string }>({ collectionName: '', description: '' });
+  const [meta, setMeta] = useState<{ collectionName: string; description: string; ticker: string }>({ collectionName: '', description: '', ticker: '' });
 
   useEffect(() => {
     void getAssetStore().getCollectionMeta().then((next) => setMeta(next));
@@ -220,10 +220,11 @@ export function IpfsPushPanel({ outputCount }: IpfsPushPanelProps) {
                 href={`https://urufulabs.xyz/create/nft?${new URLSearchParams({
                   baseUri: `ipfs://${state.result.metadataCid}/`,
                   name: meta.collectionName || '',
-                  ticker: (meta.collectionName || '')
-                    .toUpperCase()
-                    .replace(/[^A-Z0-9]/g, '')
-                    .slice(0, 10),
+                  ticker: meta.ticker
+                    || (meta.collectionName || '')
+                      .toUpperCase()
+                      .replace(/[^A-Z0-9]/g, '')
+                      .slice(0, 10),
                   maxSupply: String(outputCount),
                 }).toString()}`}
                 target="_blank"

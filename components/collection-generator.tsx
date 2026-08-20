@@ -64,6 +64,7 @@ export function CollectionGenerator({
   const workerRef = useRef<Worker | null>(null);
   const [state, setState] = useState<GenState>(INITIAL_STATE);
   const [collectionName, setCollectionName] = useState('');
+  const [ticker, setTicker] = useState('');
   const [description, setDescription] = useState('');
   const [previewUrls, setPreviewUrls] = useState<string[]>([]);
   const previewUrlsRef = useRef<string[]>([]);
@@ -74,6 +75,7 @@ export function CollectionGenerator({
     void getAssetStore().getCollectionMeta().then((meta) => {
       setCollectionName(meta.collectionName);
       setDescription(meta.description);
+      setTicker(meta.ticker);
     });
   }, [storeVersion]);
 
@@ -97,8 +99,8 @@ export function CollectionGenerator({
 
   const persistMeta = useCallback(async () => {
     const store = getAssetStore();
-    await store.setCollectionMeta(collectionName || 'Untitled Collection', description || '');
-  }, [collectionName, description]);
+    await store.setCollectionMeta(collectionName || 'Untitled Collection', description || '', ticker);
+  }, [collectionName, description, ticker]);
 
   const cancel = useCallback(() => {
     workerRef.current?.postMessage({ type: 'abort' });
@@ -269,6 +271,24 @@ export function CollectionGenerator({
             onKeyDown={(event) => {
               if (event.key === 'Enter') { event.preventDefault(); commitName(event.currentTarget.value); event.currentTarget.blur(); }
             }}
+          />
+        </label>
+        <label className="field-group">
+          <span>Ticker</span>
+          <input
+            className="uru-input"
+            type="text"
+            value={ticker}
+            placeholder="auto-derived from name"
+            maxLength={10}
+            onChange={(event) => {
+              const sanitized = event.target.value
+                .toUpperCase()
+                .replace(/[^A-Z0-9]/g, '')
+                .slice(0, 10);
+              setTicker(sanitized);
+            }}
+            onBlur={() => void persistMeta()}
           />
         </label>
         <label className="field-group">

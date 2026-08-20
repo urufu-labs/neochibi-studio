@@ -240,6 +240,7 @@ class AssetStoreClient {
       outputs: [],
       collectionName: name.trim() || 'Untitled Collection',
       collectionDescription: '',
+      collectionTicker: '',
     };
     this.projects.push(project);
     this.activeId = project.id;
@@ -769,18 +770,25 @@ class AssetStoreClient {
     return outputBlobPath(id, tokenId);
   }
 
-  async setCollectionMeta(collectionName: string, description: string): Promise<void> {
+  async setCollectionMeta(collectionName: string, description: string, ticker?: string): Promise<void> {
     const project = await this.ensureDefaultProject();
     project.collectionName = collectionName.trim() || project.name;
     project.collectionDescription = description;
+    if (ticker !== undefined) {
+      project.collectionTicker = ticker
+        .toUpperCase()
+        .replace(/[^A-Z0-9]/g, '')
+        .slice(0, 10);
+    }
     await this.touch(project);
   }
 
-  async getCollectionMeta(): Promise<{ collectionName: string; description: string }> {
+  async getCollectionMeta(): Promise<{ collectionName: string; description: string; ticker: string }> {
     const project = await this.ensureDefaultProject();
     return {
       collectionName: project.collectionName || project.name,
       description: project.collectionDescription || '',
+      ticker: project.collectionTicker || '',
     };
   }
 

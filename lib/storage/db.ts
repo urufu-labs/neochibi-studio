@@ -69,6 +69,7 @@ export interface StoredProject {
   outputs: StoredOutput[];
   collectionName: string;
   collectionDescription: string;
+  collectionTicker: string;
 }
 
 // Legacy record shapes kept only so migrateLegacyProject can read old data.
@@ -116,6 +117,9 @@ function migrateLegacyProject(project: LegacyProject): StoredProject {
     outputs,
     collectionName: project.collectionName,
     collectionDescription: project.collectionDescription,
+    collectionTicker: (project as { collectionTicker?: unknown }).collectionTicker
+      ? String((project as { collectionTicker?: unknown }).collectionTicker)
+      : '',
   };
 }
 
