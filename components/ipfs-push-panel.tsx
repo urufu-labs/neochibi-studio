@@ -215,9 +215,25 @@ export function IpfsPushPanel({ outputCount }: IpfsPushPanelProps) {
               >
                 open on gateway ↗
               </a>
+              <a
+                className="uru-btn uru-btn-mint"
+                href={`https://urufulabs.xyz/create/nft?${new URLSearchParams({
+                  baseUri: `ipfs://${state.result.metadataCid}/`,
+                  name: meta.collectionName || '',
+                  ticker: (meta.collectionName || '')
+                    .toUpperCase()
+                    .replace(/[^A-Z0-9]/g, '')
+                    .slice(0, 10),
+                  maxSupply: String(outputCount),
+                }).toString()}`}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                ✿ launch on urufulabs ↗
+              </a>
             </div>
             <span className="uru-eyebrow" style={{ color: 'var(--anchor)' }}>
-              hand this to your launchpad as the baseURI ・ token metadata lives at{' '}
+              hit ✿ launch to jump into urufulabs with everything prefilled ・ metadata lives at{' '}
               <span className="uru-num">ipfs://{short(state.result.metadataCid)}/{`{tokenId}`}.json</span>
             </span>
           </div>
