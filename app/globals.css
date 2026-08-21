@@ -57,54 +57,55 @@
    the layered "scrapbook" hierarchy still reads.
    ============================================================================ */
 :root[data-theme="dark"] {
-  /* surface layers — cool dark stack, each step is a distinct L* */
-  --cream:        #241c30;   /* shell surface — cool dark plum */
-  --cream-deep:   #1a1425;   /* inner shell / tables */
-  --cream-shadow: #100a18;   /* deepest depth marker */
+  /* Neutral graphite dark. Pink stays as the single brand accent — everything
+     else is warm-tinted gray so the UI reads as "dark mode", not "purple app".
+     Zylla-approved: no plum, no green surfaces. */
+  --cream:        #24242a;   /* shell surface — warm graphite */
+  --cream-deep:   #1c1c22;   /* inner shell / tables */
+  --cream-shadow: #131318;   /* deepest depth marker */
 
-  /* Elevation stack (dark mode). Each --card* is a step LIGHTER than --cream
-     so cards read as raised over the panel they sit in.
-     Layer order (dim → bright):
-       body (paper-base #120e1c)
-         → shell (--cream #241c30)
-           → card (--card #2e253c)             ← polaroids, receipts, WL boxes
-             → card-lifted (--card-lifted #3a3050)  ← focused fields inside a card */
-  --card:         #2e253c;
-  --card-lifted:  #3a3050;
+  --card:         #2b2b32;
+  --card-lifted:  #35353d;
 
-  /* foreground — warm cream stays for that hand-drawn feel over the cool base */
-  --anchor:       #f5ead0;
-  --anchor-soft:  #a294b0;
+  /* warm cream text on graphite */
+  --anchor:       #eee6d3;
+  --anchor-soft:  #9a938a;
 
-  /* accents — CTAs stay vivid. Warm-tint chips dim toward the surface. */
-  --pink-warm:    #3d2135;   /* pill / chip background */
-  --pink-warmer:  #331b2c;
-  --pink-hot:     #ff88b3;   /* CTA pink — untouched */
-  --mizuiro:      #1e3a58;
-  --mizuiro-deep: #172e48;
-  --mint:         #3a8b62;   /* saturated sage-mint — dark forest was reading as murky on plum */
-  --mint-deep:    #2a6b4a;
-  --mint-hot:     #4bd07d;
-  --yolk:         #40311a;
-  --yolk-deep:    #322612;
-  --tape-fiber:   rgba(255, 209, 220, 0.35);
+  /* accents — pink stays vivid; everything else neutralized */
+  --pink-warm:    #2c2124;   /* chip background — barely tinted */
+  --pink-warmer:  #251c1f;
+  --pink-hot:     #ff88b3;
+  --mizuiro:      #262a30;   /* neutral slate, was saturated blue */
+  --mizuiro-deep: #1e2229;
+  --mint:         #253028;   /* muted olive-graphite, no forest green */
+  --mint-deep:    #1e2621;
+  --mint-hot:     #4bd07d;   /* CTA success stays visible */
+  --yolk:         #322a1c;   /* muted amber */
+  --yolk-deep:    #26200f;
+  --tape-fiber:   rgba(255, 209, 220, 0.28);
 
-  /* body — coolest + deepest so shells clearly float above */
-  --paper-base:   #120e1c;
-  --paper-base-2: #191423;
+  /* body — deep neutral graphite */
+  --paper-base:   #14141a;
+  --paper-base-2: #1a1a20;
 
-  /* links — pastel blue on dark reads better than deep-web navy */
   --link-blue:    #93bbff;
   --link-visited: #d4a0ff;
 
-  /* Fields + white surfaces need explicit dark values so `color: var(--anchor)` (now cream)
-     isn't rendered on a hardcoded white bg. */
-  --input-bg:     #120e1c;
-  --paper-white:  #1e1728;
+  --input-bg:     #16161c;
+  --paper-white:  #1a1a20;
 
-  /* Ambient hover glow — bumped intensity so CTAs feel warm-lit against dark
-     surfaces (the light-mode value gets swallowed by the plum). */
-  --glow-pink:    0 0 32px rgba(255, 136, 179, 0.55);
+  --glow-pink:    0 0 32px rgba(255, 136, 179, 0.45);
+}
+
+/* Body wash overrides for dark mode — kill the color radials that read as
+   purple/mint bloom against graphite. Keep one very soft pink pool for warmth. */
+:root[data-theme="dark"] body {
+  background: var(--paper-base);
+  background-image:
+    radial-gradient(circle at 6px 6px, rgba(238, 230, 211, 0.03) 1px, transparent 2px),
+    radial-gradient(circle at 22% 12%, rgba(255, 136, 179, 0.06) 0, transparent 55%),
+    radial-gradient(circle at 82% 82%, rgba(238, 230, 211, 0.03) 0, transparent 60%);
+  background-size: 24px 24px, auto, auto;
 }
 
 @theme inline {
@@ -2800,5 +2801,253 @@ body {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
   gap: 12px;
+}
+
+/* ---------------------------------------------------------------------------
+   Studio tabs (main 3-page nav — replaces the decorative StudioSteps bar).
+   Each tab is a clickable button with active/done/pending state coloring.
+--------------------------------------------------------------------------- */
+.studio-tabs {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  padding: 10px 12px;
+  background: var(--cream);
+  border: 3px double var(--anchor);
+  border-radius: 14px;
+  box-shadow: 3px 3px 0 var(--anchor);
+}
+.studio-tab {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  background: var(--paper-white);
+  color: var(--anchor);
+  border: 1.5px solid var(--anchor);
+  border-radius: 10px;
+  font-family: var(--font-round), Klee One, cursive;
+  text-align: left;
+  cursor: pointer;
+  transition: transform 90ms ease, box-shadow 90ms ease, background 90ms ease;
+  min-width: 0;
+}
+.studio-tab:hover { transform: translate(-1px, -1px); box-shadow: 2px 2px 0 var(--anchor); background: var(--cream); }
+.studio-tab[data-state='active'] {
+  background: var(--pink-hot);
+  color: #fff;
+  border-color: var(--anchor);
+  box-shadow: 3px 3px 0 var(--anchor);
+  transform: translate(-1px, -1px);
+}
+.studio-tab[data-state='done'] {
+  background: var(--cream);
+  border-color: var(--mizuiro-deep);
+}
+.studio-tab-jp {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: var(--cream);
+  color: var(--anchor);
+  border: 1px solid var(--anchor);
+  font-family: var(--font-jp), DotGothic16, monospace;
+  font-size: 15px;
+  line-height: 1;
+}
+.studio-tab[data-state='active'] .studio-tab-jp { background: #fff; color: var(--pink-hot); border-color: var(--pink-hot); }
+.studio-tab[data-state='done'] .studio-tab-jp { background: var(--mizuiro); color: var(--anchor); border-color: var(--mizuiro-deep); }
+.studio-tab-body { display: flex; flex-direction: column; min-width: 0; gap: 1px; }
+.studio-tab-eyebrow { font-size: 10px; line-height: 1; color: inherit; }
+.studio-tab-title {
+  font-family: var(--font-round), Klee One, cursive;
+  font-size: 14px;
+  line-height: 1.15;
+  color: inherit;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+@media (max-width: 640px) {
+  .studio-tabs { grid-template-columns: 1fr; }
+  .studio-tab-title { font-size: 13px; }
+}
+
+/* ---------------------------------------------------------------------------
+   Compact upload dropzone — one-row strip (icon + label + inline "+ add" btn).
+--------------------------------------------------------------------------- */
+.upload-dropzone-compact { padding: 10px 14px; }
+.upload-dropzone-target-compact {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  border: 2px dashed var(--pink-hot);
+  border-radius: 10px;
+  background: var(--paper-white);
+  cursor: pointer;
+  transition: background 120ms ease, border-color 120ms ease;
+  min-height: 52px;
+}
+.upload-dropzone-target-compact[data-drag-over='true'] {
+  background: var(--pink-warm);
+  border-color: var(--anchor);
+}
+.upload-dropzone-icon {
+  font-size: 20px;
+  line-height: 1;
+  color: var(--pink-hot);
+}
+.upload-dropzone-label {
+  flex: 1;
+  font-family: var(--font-round), Klee One, cursive;
+  font-size: 14px;
+  color: var(--anchor);
+}
+.upload-dropzone-cta { flex-shrink: 0; }
+
+/* ---------------------------------------------------------------------------
+   Effects panel as a <details> dropdown — collapsed by default.
+--------------------------------------------------------------------------- */
+.effect-chip-stack-details { padding: 8px 12px; }
+.effect-chip-stack-details > summary {
+  list-style: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 6px 4px;
+}
+.effect-chip-stack-details > summary::-webkit-details-marker { display: none; }
+.effect-chip-summary-label {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  font-family: var(--font-round), Klee One, cursive;
+}
+.effect-chip-count-inline { color: var(--pink-hot); font-weight: 700; }
+.effect-chip-summary-hint::before { content: '▸ '; margin-right: 2px; }
+.effect-chip-stack-details[open] .effect-chip-summary-hint::before { content: '▾ '; }
+.effect-chip-head-inline { padding: 6px 4px; }
+
+/* ---------------------------------------------------------------------------
+   Compact "Manage layers" panel below the layers list.
+--------------------------------------------------------------------------- */
+.manager-panel-compact {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 10px 14px;
+}
+.manager-compact-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: flex-end;
+}
+.manager-compact-grid .field-group { flex: 1 1 160px; min-width: 140px; }
+.manager-compact-order { flex: 0 0 90px !important; min-width: 90px !important; }
+
+/* Pending paste/replace status — small inline toast, not a full block. */
+.pending-paste-toast {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: var(--mint);
+  border: 1.5px solid var(--mint-hot);
+  color: var(--anchor);
+  font-family: var(--font-round), Klee One, cursive;
+  font-size: 13px;
+  flex-wrap: wrap;
+}
+.pending-paste-toast-replace {
+  background: var(--pink-warm);
+  border-color: var(--pink-hot);
+}
+.pending-paste-toast > span:not(.uru-eyebrow) { flex: 1; min-width: 200px; }
+
+/* ---------------------------------------------------------------------------
+   Trait rarities as a <details> block on the Tune tab (collapsed by default).
+--------------------------------------------------------------------------- */
+.weights-manager-details { padding: 12px 16px; }
+.weights-manager-details > summary {
+  list-style: none;
+  cursor: pointer;
+  padding: 4px 0;
+  margin: 0;
+}
+.weights-manager-details > summary::-webkit-details-marker { display: none; }
+.weights-manager-summary::before {
+  content: '▸ ';
+  margin-right: 4px;
+  color: var(--pink-hot);
+  font-weight: 700;
+}
+.weights-manager-details[open] .weights-manager-summary::before { content: '▾ '; }
+.weights-manager-details[open] .weights-manager { margin-top: 12px; }
+
+/* ---------------------------------------------------------------------------
+   Layer drag-and-drop visual feedback.
+--------------------------------------------------------------------------- */
+.layer-card[draggable='true'] { cursor: grab; }
+.layer-card[draggable='true']:active { cursor: grabbing; }
+.layer-card[data-drag-source='true'] { opacity: 0.55; }
+.layer-card[data-drop-target='true'] {
+  outline: 2.5px dashed var(--pink-hot);
+  outline-offset: 3px;
+  transform: translate(-1px, -2px);
+}
+
+/* ---------------------------------------------------------------------------
+   Generate tab — download bundle and publish-to-IPFS on the same row.
+--------------------------------------------------------------------------- */
+.studio-publish-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 16px;
+}
+@media (min-width: 1080px) {
+  .studio-publish-row { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: stretch; }
+  .studio-publish-row > * { height: 100%; }
+}
+
+/* ---------------------------------------------------------------------------
+   Random rolls gallery — same tile shape/sizing conventions as the collection
+   browser so the two grids read as siblings. Tile sizes were previously
+   unstyled (defaulted to block flow); this restores the intended grid.
+--------------------------------------------------------------------------- */
+.gallery-grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+}
+.gallery-grid-s  { grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); }
+.gallery-grid-m  { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); }
+.gallery-grid-l  { grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); }
+.gallery-grid-xl { grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); }
+.gallery-tile-button {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px;
+  cursor: pointer;
+  text-align: left;
+  background: var(--paper-white);
+}
+.gallery-tile-index { align-self: flex-start; }
+.gallery-tile-preset-badge { align-self: flex-start; font-size: 10px; }
+.gallery-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: flex-end;
+  margin-bottom: 10px;
 }
 

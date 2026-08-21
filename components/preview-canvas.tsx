@@ -283,9 +283,16 @@ export function PreviewCanvas({
         </div>
       </div>
 
-      <div className="effect-chip-stack">
-        <div className="effect-chip-head">
-          <h3 className="uru-h2" style={{ fontSize: 16 }}>Effects</h3>
+      <details className="effect-chip-stack effect-chip-stack-details">
+        <summary className="effect-chip-head">
+          <span className="effect-chip-summary-label">
+            <span className="uru-eyebrow">effects ✿</span>
+            <span className="uru-num effect-chip-count-inline">{activeCount}</span>
+            <span className="uru-eyebrow">/{effects.length} on</span>
+          </span>
+          <span className="uru-eyebrow effect-chip-summary-hint">click to open</span>
+        </summary>
+        <div className="effect-chip-head effect-chip-head-inline">
           <div className="effect-chip-head-actions">
             <span className="uru-eyebrow effect-chip-count"><span className="uru-num">{activeCount}</span>/<span className="uru-num">{effects.length}</span> on</span>
             <button className="uru-btn" onClick={resetEffects} type="button" disabled={activeCount === 0}>
@@ -370,7 +377,7 @@ export function PreviewCanvas({
             })}
           </div>
         ) : null}
-      </div>
+      </details>
 
       {renderError ? (
         <div

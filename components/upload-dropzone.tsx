@@ -192,15 +192,9 @@ export function UploadDropzone({ onImport }: UploadDropzoneProps) {
   }
 
   return (
-    <div className="uru-shell upload-dropzone">
-      <div className="upload-dropzone-header">
-        <h2 className="uru-h2" style={{ margin: 0 }}>Import traits ✿</h2>
-        <p className="uru-eyebrow" style={{ marginTop: 4 }}>
-          drop a folder of layer folders, or click to pick files
-        </p>
-      </div>
+    <div className="uru-shell-tight upload-dropzone upload-dropzone-compact">
       <div
-        className="uru-cart upload-dropzone-target"
+        className="upload-dropzone-target upload-dropzone-target-compact"
         role="button"
         tabIndex={0}
         onDragOver={(event) => {
@@ -214,40 +208,26 @@ export function UploadDropzone({ onImport }: UploadDropzoneProps) {
           if (event.key === 'Enter' || event.key === ' ') fileInputRef.current?.click();
         }}
         data-drag-over={dragOver ? 'true' : undefined}
-        style={{
-          border: '2.5px dashed var(--pink-hot)',
-          background: dragOver ? 'var(--pink-warm)' : 'var(--paper-white)',
-          padding: 20,
-          borderRadius: 12,
-          textAlign: 'center',
-          cursor: 'pointer',
-          minHeight: 130,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          transition: 'background 120ms ease',
-        }}
       >
-        <div className="uru-bubble" style={{ margin: 0 }}>
+        <span className="upload-dropzone-icon" aria-hidden>✿</span>
+        <span className="upload-dropzone-label">
           {busy
             ? 'Importing…'
             : dragOver
               ? 'drop to import ✿'
-              : 'drop trait folders here, or click to add a layer ✿'}
-        </div>
-      </div>
-      <div className="upload-dropzone-actions" style={{ display: 'flex', gap: 8, marginTop: 12, flexWrap: 'wrap' }}>
+              : 'drop a folder of trait folders, or click to pick files'}
+        </span>
         <button
           type="button"
-          className="uru-btn uru-btn-primary"
+          className="uru-btn uru-btn-primary upload-dropzone-cta"
           disabled={busy}
-          onClick={() => fileInputRef.current?.click()}
+          onClick={(event) => {
+            event.stopPropagation();
+            fileInputRef.current?.click();
+          }}
         >
-          + add layer / files
+          + add
         </button>
-        <span className="uru-eyebrow" style={{ alignSelf: 'center' }}>
-          tip: drag a folder whose subfolders are your layers, or pick a single layer&apos;s PNGs
-        </span>
       </div>
       <input
         ref={fileInputRef}
