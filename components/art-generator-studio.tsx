@@ -28,6 +28,8 @@ import {
 } from '@/lib/art-generator/canvas-filters';
 import type { TraitAsset, TraitLayer, TraitLibrary } from '@/lib/art-generator/types';
 import { getAssetStore, useAssetStoreVersion } from '@/lib/storage/asset-store';
+import { clearDatabase } from '@/lib/storage/db';
+import * as opfs from '@/lib/storage/opfs';
 import { PreviewCanvas } from '@/components/preview-canvas';
 import { GalleryTile } from '@/components/gallery-tile';
 import { TraitPicker } from '@/components/trait-picker';
@@ -957,6 +959,37 @@ export function ArtGeneratorStudio() {
     }
   }
 
+  async function purgeProject() {
+    if (typeof window === 'undefined') return;
+    const confirmed = window.confirm(
+      'This will purge ALL your uploaded traits, saved rules, and generated tokens for this project from this browser.\n\nThere is no undo. Continue?',
+    );
+    if (!confirmed) return;
+    hydratedRef.current = false;
+    traitWeightsHydratedRef.current = false;
+    if (autosaveTimerRef.current) {
+      clearTimeout(autosaveTimerRef.current);
+      autosaveTimerRef.current = null;
+    }
+    if (traitWeightsTimerRef.current) {
+      clearTimeout(traitWeightsTimerRef.current);
+      traitWeightsTimerRef.current = null;
+    }
+    setManageState({ loading: true, error: null, success: null });
+    try {
+      getAssetStore().revokeAllBlobUrls();
+      await opfs.clearAll();
+      await clearDatabase();
+      window.location.reload();
+    } catch (error) {
+      setManageState({
+        loading: false,
+        error: error instanceof Error ? error.message : 'Failed to purge project data.',
+        success: null,
+      });
+    }
+  }
+
   function startNewPastedTrait(layerName: string, preferredTraitName?: string, autoCreateOnPaste = false) {
     const draft = normalizePendingNewTrait({ layerName, traitName: preferredTraitName }, uploadLayerName || 'background');
     setPendingNewTrait({ ...draft, autoCreateOnPaste });
@@ -1426,6 +1459,20 @@ export function ArtGeneratorStudio() {
             {manageState.success}
           </div>
         ) : null}
+
+        <div className="manager-danger-zone">
+          <span className="manager-danger-hint">
+            Full reset — wipes every uploaded trait, saved rule, and generation from this browser.
+          </span>
+          <button
+            type="button"
+            className="uru-btn manager-purge-btn"
+            onClick={purgeProject}
+            disabled={manageState.loading}
+          >
+            purge everything ✗
+          </button>
+        </div>
       </section>
       </>) : null}
 

@@ -2953,6 +2953,37 @@ body {
 .manager-compact-grid .field-group { flex: 1 1 160px; min-width: 140px; }
 .manager-compact-order { flex: 0 0 90px !important; min-width: 90px !important; }
 
+.manager-danger-zone {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 4px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1.5px dashed color-mix(in srgb, var(--pink-hot) 55%, transparent);
+  background: color-mix(in srgb, var(--pink-hot) 8%, transparent);
+}
+.manager-danger-hint {
+  flex: 1 1 240px;
+  min-width: 0;
+  color: var(--anchor-soft);
+  font-family: var(--font-round), Klee One, cursive;
+  font-size: 12.5px;
+  line-height: 1.35;
+}
+.manager-purge-btn {
+  color: var(--pink-hot);
+  border-color: var(--pink-hot);
+  background: transparent;
+}
+.manager-purge-btn:hover:not(:disabled) {
+  background: var(--pink-hot);
+  color: #fff;
+}
+.manager-purge-btn:disabled { opacity: 0.55; cursor: not-allowed; }
+
 /* Pending paste/replace status — small inline toast, not a full block. */
 .pending-paste-toast {
   display: flex;
