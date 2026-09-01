@@ -39,16 +39,22 @@ export async function POST() {
         },
       }),
     });
-    if (!response.ok) throw new Error(`Pinata key mint failed: ${response.status}`);
+    if (!response.ok) {
+      const body = await response.text().catch(() => '');
+      const snippet = body ? ` — ${body.slice(0, 240)}` : '';
+      throw new Error(`Pinata key mint failed (${response.status})${snippet}`);
+    }
     const payload = (await response.json()) as { JWT?: string; pinata_api_key?: string };
     if (!payload.JWT) throw new Error('Pinata key response missing JWT.');
     // Short-lived: caller should discard after the current upload session.
     return NextResponse.json({ jwt: payload.JWT, proxyMode: false });
   } catch (error) {
-    // Fallback: proxy mode. The browser will POST files to /api/ipfs/proxy-upload
-    // (not implemented here) OR the client-side helper can degrade to a single
-    // "please configure a paid Pinata plan" note. For now we surface proxyMode
-    // so the client knows to fall back rather than crash.
+    // Fallback: proxy mode. The browser POSTs to /api/ipfs/proxy-upload which
+    // pipes the multipart through to Pinata — but that path is capped at
+    // Vercel's ~100 MB function body limit, so full 10k collections will fail.
+    // Surface the exact reason so the UI can explain why scoped mode isn't
+    // available (usually: master JWT lacks Admin scope, or the account plan
+    // doesn't allow programmatic scoped-key creation).
     return NextResponse.json({
       proxyMode: true,
       note: error instanceof Error ? error.message : 'Scoped key mint unavailable.',

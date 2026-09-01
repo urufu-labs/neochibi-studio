@@ -28,14 +28,16 @@ export interface PinResult {
 interface JwtResponse {
   jwt?: string;
   proxyMode?: boolean;
+  note?: string;
   error?: string;
 }
 
-async function fetchJwt(): Promise<
+export type JwtSession =
   | { mode: 'scoped'; jwt: string }
-  | { mode: 'proxy' }
-  | { mode: 'unavailable'; error: string }
-> {
+  | { mode: 'proxy'; note?: string }
+  | { mode: 'unavailable'; error: string };
+
+export async function fetchJwt(): Promise<JwtSession> {
   const response = await fetch('/api/ipfs/mint-jwt', { method: 'POST' });
   if (response.status === 501) {
     const body = (await response.json()) as JwtResponse;
@@ -43,7 +45,7 @@ async function fetchJwt(): Promise<
   }
   const body = (await response.json()) as JwtResponse;
   if (body.jwt) return { mode: 'scoped', jwt: body.jwt };
-  return { mode: 'proxy' };
+  return { mode: 'proxy', note: body.note };
 }
 
 interface DirectoryFile {
@@ -92,13 +94,27 @@ async function pinDirectoryProxied(
   form.append('folderName', folderName);
   for (const file of files) form.append('file', file.blob, file.name);
 
+  const totalBytes = files.reduce((sum, f) => sum + f.blob.size, 0);
+  const totalMb = (totalBytes / (1024 * 1024)).toFixed(1);
+
   const response = await fetch('/api/ipfs/proxy-upload', {
     method: 'POST',
     body: form,
   });
   if (!response.ok) {
     const text = await response.text();
-    throw new Error(`Proxy directory upload failed: ${text}`);
+    // Vercel returns 413 with a "FUNCTION_PAYLOAD_TOO_LARGE" body when the
+    // request exceeds ~100 MB. Rewrite that into an actionable message that
+    // points at scoped-mode (the intended fix).
+    if (response.status === 413 || /PAYLOAD_TOO_LARGE/i.test(text)) {
+      throw new Error(
+        `Upload too large for proxy mode (${totalMb} MB > ~100 MB Vercel cap). ` +
+          `Enable scoped mode: master PINATA_JWT needs Admin scope, and the ` +
+          `Pinata account plan must permit programmatic key creation. Check ` +
+          `POST /api/ipfs/mint-jwt for the exact reason.`,
+      );
+    }
+    throw new Error(`Proxy directory upload failed (${response.status}): ${text.slice(0, 400)}`);
   }
   const payload = (await response.json()) as { cid?: string };
   if (!payload.cid) throw new Error('Proxy directory upload returned no CID.');
@@ -118,6 +134,7 @@ export interface PinOptions {
   collectionName: string;
   description: string;
   onProgress?: (progress: PinProgress) => void;
+  onSessionMode?: (mode: 'scoped' | 'proxy', note?: string) => void;
   shouldAbort?: () => boolean;
 }
 
@@ -163,6 +180,7 @@ function buildTokenMetadata(
 export async function pinCollection(options: PinOptions): Promise<PinResult> {
   const session = await fetchJwt();
   if (session.mode === 'unavailable') throw new Error(session.error);
+  options.onSessionMode?.(session.mode, session.mode === 'proxy' ? session.note : undefined);
 
   const store = getAssetStore();
   const outputs = await store.listOutputs();

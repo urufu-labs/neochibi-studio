@@ -17,6 +17,8 @@ interface PinState {
   result: PinResult | null;
   error: string | null;
   jwtAvailable: boolean | null;
+  sessionMode: 'scoped' | 'proxy' | null;
+  sessionNote: string | null;
 }
 
 const INITIAL: PinState = {
@@ -27,6 +29,8 @@ const INITIAL: PinState = {
   result: null,
   error: null,
   jwtAvailable: null,
+  sessionMode: null,
+  sessionNote: null,
 };
 
 function short(cid: string): string {
@@ -45,12 +49,28 @@ export function IpfsPushPanel({ outputCount }: IpfsPushPanelProps) {
   }, []);
 
   useEffect(() => {
-    // Ping the mint endpoint once to detect JWT availability.
+    // Ping the mint endpoint once to detect JWT availability and which upload
+    // mode will run (scoped = browser-direct, no size cap; proxy = through
+    // Vercel, ~100 MB cap).
     let cancelled = false;
     fetch('/api/ipfs/mint-jwt', { method: 'POST' })
-      .then((res) => {
+      .then(async (res) => {
         if (cancelled) return;
-        setState((s) => ({ ...s, jwtAvailable: res.status !== 501 }));
+        if (res.status === 501) {
+          setState((s) => ({ ...s, jwtAvailable: false }));
+          return;
+        }
+        const body = (await res.json().catch(() => ({}))) as {
+          jwt?: string;
+          proxyMode?: boolean;
+          note?: string;
+        };
+        setState((s) => ({
+          ...s,
+          jwtAvailable: true,
+          sessionMode: body.jwt ? 'scoped' : 'proxy',
+          sessionNote: body.jwt ? null : body.note ?? null,
+        }));
       })
       .catch(() => {
         if (!cancelled) setState((s) => ({ ...s, jwtAvailable: false }));
@@ -74,6 +94,9 @@ export function IpfsPushPanel({ outputCount }: IpfsPushPanelProps) {
         collectionName: current.collectionName || 'Untitled Collection',
         description: current.description || '',
         shouldAbort: () => abortRef.current,
+        onSessionMode: (mode, note) => {
+          setState((s) => ({ ...s, sessionMode: mode, sessionNote: note ?? null }));
+        },
         onProgress: (progress) => {
           setState((s) => ({ ...s, phase: progress.phase, done: progress.done, total: progress.total }));
         },
@@ -99,6 +122,41 @@ export function IpfsPushPanel({ outputCount }: IpfsPushPanelProps) {
       {noJwt ? (
         <div className="uru-bubble" style={{ marginTop: 10 }}>
           IPFS uploads are temporarily unavailable. Try again later ✿
+        </div>
+      ) : null}
+
+      {!noJwt && state.sessionMode === 'proxy' ? (
+        <div
+          className="uru-shell-tight"
+          role="status"
+          style={{
+            marginTop: 10,
+            borderColor: 'var(--pink-hot)',
+            background: 'var(--pink-warm)',
+            display: 'grid',
+            gap: 6,
+            padding: '10px 12px',
+          }}
+        >
+          <strong className="uru-eyebrow" style={{ color: 'var(--pink-hot)' }}>
+            heads up ✿ proxy mode
+          </strong>
+          <p style={{ margin: 0, fontFamily: 'var(--font-round), Klee One, cursive', fontSize: 13, lineHeight: 1.45 }}>
+            Uploads will route through this server, which is capped at ~100 MB per request — full-size collections will hit <span className="uru-num">FUNCTION_PAYLOAD_TOO_LARGE</span>. To enable browser-direct uploads with no cap, the server’s <span className="uru-num">PINATA_JWT</span> needs the Admin scope, and the Pinata account plan must allow programmatic scoped-key creation.
+          </p>
+          {state.sessionNote ? (
+            <p
+              style={{
+                margin: 0,
+                fontFamily: 'var(--font-pixel), monospace',
+                fontSize: 11,
+                color: 'var(--anchor-soft)',
+                wordBreak: 'break-word',
+              }}
+            >
+              pinata said: {state.sessionNote}
+            </p>
+          ) : null}
         </div>
       ) : null}
 
