@@ -273,26 +273,54 @@ export function IpfsPushPanel({ outputCount }: IpfsPushPanelProps) {
               >
                 open on gateway ↗
               </a>
-              <a
-                className="uru-btn uru-btn-mint"
-                href={`https://urufulabs.xyz/create/nft?${new URLSearchParams({
-                  baseUri: `ipfs://${state.result.metadataCid}/`,
+              {(() => {
+                // Both launchpad lanes read the same baseURI + tokenId + ".json"
+                // shape, so one pinned metadata CID feeds either. Only the
+                // supply param name differs: the NFT lane calls it maxSupply,
+                // the DN404 lane calls it collectionSize (mirror NFT count).
+                const ticker = meta.ticker
+                  || (meta.collectionName || '')
+                    .toUpperCase()
+                    .replace(/[^A-Z0-9]/g, '')
+                    .slice(0, 10);
+                const common = {
+                  baseUri: `ipfs://${state.result!.metadataCid}/`,
                   name: meta.collectionName || '',
-                  ticker: meta.ticker
-                    || (meta.collectionName || '')
-                      .toUpperCase()
-                      .replace(/[^A-Z0-9]/g, '')
-                      .slice(0, 10),
+                  ticker,
+                };
+                const nftHref = `https://urufulabs.xyz/create/nft?${new URLSearchParams({
+                  ...common,
                   maxSupply: String(outputCount),
-                }).toString()}`}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                ✿ launch on urufulabs ↗
-              </a>
+                }).toString()}`;
+                const dn404Href = `https://urufulabs.xyz/create/dn404?${new URLSearchParams({
+                  ...common,
+                  collectionSize: String(outputCount),
+                }).toString()}`;
+                return (
+                  <>
+                    <a
+                      className="uru-btn uru-btn-mint"
+                      href={nftHref}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      ✿ launch as nft ↗
+                    </a>
+                    <a
+                      className="uru-btn uru-btn-mint"
+                      href={dn404Href}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      title="token + nft in one. hold whole units of the token to hold the art."
+                    >
+                      ✧ launch as dn404 ↗
+                    </a>
+                  </>
+                );
+              })()}
             </div>
             <span className="uru-eyebrow" style={{ color: 'var(--anchor)' }}>
-              hit ✿ launch to jump into urufulabs with everything prefilled ・ metadata lives at{' '}
+              hit ✿ nft or ✧ dn404 to jump into urufulabs with everything prefilled ・ metadata lives at{' '}
               <span className="uru-num">ipfs://{short(state.result.metadataCid)}/{`{tokenId}`}.json</span>
             </span>
           </div>
