@@ -285,6 +285,10 @@ export function IpfsPushPanel({ outputCount }: IpfsPushPanelProps) {
                     .slice(0, 10);
                 const common = {
                   baseUri: `ipfs://${state.result!.metadataCid}/`,
+                  // Collection-level JSON (banner, description) published
+                  // alongside the per-token files — what OpenSea reads for
+                  // the collection page via contractURI().
+                  contractUri: `ipfs://${state.result!.metadataCid}/collection.json`,
                   name: meta.collectionName || '',
                   ticker,
                 };

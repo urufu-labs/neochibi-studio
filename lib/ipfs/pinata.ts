@@ -229,6 +229,27 @@ export async function pinCollection(options: PinOptions): Promise<PinResult> {
     metadataFiles.push({ name: `${output.tokenId}.json`, blob });
   }
 
+  // Collection-level metadata (OpenSea "contract-level metadata"): what the
+  // collection PAGE shows — name, description, banner. Read on-chain via
+  // contractURI(), separate from per-token tokenURI(id). Lives in the same
+  // directory so one CID covers both:
+  //   tokenURI(id)  = ipfs://<cid>/<id>.json
+  //   contractURI() = ipfs://<cid>/collection.json
+  // Banner = the lowest token id's image; launchers can re-point contractURI
+  // later if they want a dedicated banner.
+  const firstTokenId = (outputs as StoredOutput[])
+    .map((o) => o.tokenId)
+    .reduce((min, id) => (id < min ? id : min));
+  const collectionMetadata: Record<string, unknown> = {
+    name: options.collectionName || 'Untitled Collection',
+    description: options.description || '',
+    image: `ipfs://${imageCid}/${firstTokenId}.png`,
+  };
+  metadataFiles.push({
+    name: 'collection.json',
+    blob: new Blob([JSON.stringify(collectionMetadata, null, 2)], { type: 'application/json' }),
+  });
+
   const metadataCid = await pinDirectory(
     session,
     metadataFiles,
