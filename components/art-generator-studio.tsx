@@ -1037,8 +1037,6 @@ export function ArtGeneratorStudio() {
   const pendingTraitDraft = normalizePendingNewTrait(pendingNewTrait, uploadLayerName || 'background');
   const totalTraitCount = library?.layers.reduce((sum, layer) => sum + layer.traits.length, 0) ?? 0;
 
-  const forgeStatusLabel = library ? 'Forge armed' : 'Awaiting root';
-
   async function commitProjectRename() {
     const trimmed = projectNameDraft.trim();
     setRenamingProject(false);
@@ -1056,29 +1054,26 @@ export function ArtGeneratorStudio() {
   }
 
   const autosaveLabel =
-    autosaveStatus === 'saving' ? 'Autosaving…'
-      : autosaveStatus === 'saved' ? 'Autosaved'
-      : autosaveStatus === 'error' ? 'Autosave failed'
+    autosaveStatus === 'saving' ? 'Saving…'
+      : autosaveStatus === 'saved' ? 'Saved'
+      : autosaveStatus === 'error' ? 'Failed'
       : hydratedRef.current ? 'Idle' : 'Loading…';
 
   return (
     <main className="studio-shell">
       <div style={{ position: 'relative' }}>
-        <span
-          className="uru-tape uru-tape-mizuiro"
-          aria-hidden="true"
-          style={{ position: 'absolute', top: -8, left: 40, transform: 'rotate(-4deg)', zIndex: 2 }}
-        />
         <header className="studio-toolbar uru-shell">
           <div className="studio-toolbar-inner">
             <div className="studio-toolbar-title-row">
-              <h1 className="uru-h1" style={{ fontSize: 'clamp(28px, 4vw, 44px)', margin: 0 }}>
-                urufulabs<span style={{ color: 'var(--pink-hot)' }}>studio</span> trait forge
+              <span className="studio-toolbar-kicker">Generative NFT studio</span>
+              <h1 className="uru-h1" style={{ fontSize: 'clamp(32px, 4vw, 48px)', margin: 0 }}>
+                Trait forge
               </h1>
               {renamingProject ? (
                 <input
-                  className="uru-input"
+                  className="uru-input studio-collection-input"
                   autoFocus
+                  aria-label="Collection name"
                   value={projectNameDraft}
                   onChange={(event) => setProjectNameDraft(event.target.value)}
                   onBlur={() => void commitProjectRename()}
@@ -1086,45 +1081,38 @@ export function ArtGeneratorStudio() {
                     if (event.key === 'Enter') void commitProjectRename();
                     if (event.key === 'Escape') { setRenamingProject(false); setProjectNameDraft(projectName); }
                   }}
-                  style={{ maxWidth: 260 }}
                 />
               ) : (
                 <button
                   type="button"
-                  className="uru-stamp uru-stamp-cream"
+                  className="studio-collection-name"
                   onClick={() => { setProjectNameDraft(projectName); setRenamingProject(true); }}
-                  title="Click to rename this collection"
-                  style={{ maxWidth: 260, cursor: 'pointer' }}
+                  title="Rename this collection"
                 >
-                  ✿ {projectName}
+                  {projectName}
+                  <span className="studio-collection-edit">Rename</span>
                 </button>
               )}
             </div>
-            <div className="studio-toolbar-stamps">
-              <span className="uru-stamp uru-stamp-mint">{forgeStatusLabel}</span>
-              <span className="uru-stamp uru-stamp-cream">
-                <span className="uru-num">{library?.layers.length ?? 0}</span> layers
-              </span>
-              <span className="uru-stamp uru-stamp-mizuiro">
-                <span className="uru-num">{totalTraitCount}</span> traits
-              </span>
-              <span
-                className={`uru-stamp autosave-chip autosave-${autosaveStatus} ${
-                  autosaveStatus === 'saving'
-                    ? 'uru-stamp-yolk uru-idle-bob'
-                    : autosaveStatus === 'error'
-                      ? 'uru-stamp-pink'
-                      : 'uru-stamp-mint'
-                }`}
-              >
-                {autosaveLabel}
-              </span>
-            </div>
+            <dl className="studio-toolbar-stats">
+              <div>
+                <dt>Layers</dt>
+                <dd className="uru-num">{library?.layers.length ?? 0}</dd>
+              </div>
+              <div>
+                <dt>Traits</dt>
+                <dd className="uru-num">{totalTraitCount}</dd>
+              </div>
+              <div>
+                <dt>Autosave</dt>
+                <dd className="studio-autosave" data-status={autosaveStatus}>
+                  <i aria-hidden />
+                  {autosaveLabel}
+                </dd>
+              </div>
+            </dl>
             <div className="studio-toolbar-actions">
-              <button className="uru-btn uru-btn-primary" onClick={randomizeSelection} type="button" disabled={!library}>
-                Preview single token ✿
-              </button>
-              <button className="uru-btn uru-btn-cream" onClick={loadLibrary} type="button" disabled={state.loading}>
+              <button className="uru-btn" onClick={loadLibrary} type="button" disabled={state.loading} title="Reload the trait library from this browser">
                 {state.loading ? 'Loading…' : 'Reload'}
               </button>
             </div>
@@ -1134,16 +1122,8 @@ export function ArtGeneratorStudio() {
 
       {state.error ? (
         <div
-          className="uru-shell-tight error-banner"
+          className="uru-banner error-banner" data-tone="error"
           role="alert"
-          style={{
-            borderColor: 'var(--pink-hot)',
-            background: 'var(--pink-warm)',
-            fontFamily: 'var(--font-pixel), monospace',
-            fontSize: 12,
-            textTransform: 'uppercase',
-            letterSpacing: '0.08em',
-          }}
         >
           {state.error}
         </div>
@@ -1256,7 +1236,7 @@ export function ArtGeneratorStudio() {
                         <div className="layer-card-compact-head" style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
                           <input
                             className="uru-input"
-                            style={{ fontSize: 17, fontWeight: 700, maxWidth: 200 }}
+                            style={{ fontSize: 15, maxWidth: 220 }}
                             value={renameLayerDrafts[layer.directoryName] ?? layer.name}
                             onChange={(event) => setRenameLayerDrafts((current) => ({ ...current, [layer.directoryName]: event.target.value }))}
                             onBlur={() => {
@@ -1335,7 +1315,7 @@ export function ArtGeneratorStudio() {
                               Rename
                             </button>
                             <button
-                              className={`uru-btn uru-btn-primary${replaceArmed ? ' active-reference-chip' : ''}`}
+                              className={`uru-btn${replaceArmed ? ' uru-btn-mint active-reference-chip' : ''}`}
                               type="button"
                               disabled={manageState.loading}
                               onClick={() => {
@@ -1382,6 +1362,7 @@ export function ArtGeneratorStudio() {
           exportName={exportName}
           onExportNameChange={setExportName}
           buildAssetUrl={buildAssetUrl}
+          onShuffle={randomizeSelection}
         />
       </section>
 
@@ -1397,7 +1378,7 @@ export function ArtGeneratorStudio() {
             <input className="uru-input" value={newLayerOrder} onChange={(event) => setNewLayerOrder(event.target.value)} inputMode="numeric" min="1" type="number" placeholder="Auto" />
           </label>
           <button className="uru-btn uru-btn-primary" type="button" onClick={createLayer} disabled={manageState.loading}>
-            + create layer
+            + Create layer
           </button>
           <button className="uru-btn" type="button" onClick={persistLayerOrder} disabled={!library || manageState.loading}>
             save order
@@ -1406,7 +1387,7 @@ export function ArtGeneratorStudio() {
 
         {pendingNewTrait ? (
           <div className="pending-paste-toast" role="status">
-            <span className="uru-eyebrow">paste armed ✿</span>
+            <span className="uru-eyebrow">Paste armed</span>
             <span>
               Ctrl+V an image → create <strong>{pendingTraitDraft.traitName}</strong> in <strong>{pendingTraitDraft.layerName}</strong>
             </span>
@@ -1417,7 +1398,7 @@ export function ArtGeneratorStudio() {
         ) : null}
         {pendingReplaceTarget ? (
           <div className="pending-paste-toast pending-paste-toast-replace" role="status">
-            <span className="uru-eyebrow">replace armed ✿</span>
+            <span className="uru-eyebrow">Replace armed</span>
             <span>
               Ctrl+V an image → overwrite <strong>{pendingReplaceTarget.layerName} / {pendingReplaceTarget.traitName}</strong>
             </span>
@@ -1429,32 +1410,16 @@ export function ArtGeneratorStudio() {
 
         {manageState.error ? (
           <div
-            className="uru-shell-tight error-banner"
+            className="uru-banner error-banner" data-tone="error"
             role="alert"
-            style={{
-              borderColor: 'var(--pink-hot)',
-              background: 'var(--pink-warm)',
-              fontFamily: 'var(--font-pixel), monospace',
-              fontSize: 12,
-              textTransform: 'uppercase',
-              letterSpacing: '0.08em',
-            }}
           >
             {manageState.error}
           </div>
         ) : null}
         {manageState.success ? (
           <div
-            className="uru-shell-tight success-banner"
+            className="uru-banner success-banner" data-tone="success"
             role="status"
-            style={{
-              borderColor: 'var(--mint-hot)',
-              background: 'var(--mint)',
-              fontFamily: 'var(--font-pixel), monospace',
-              fontSize: 12,
-              textTransform: 'uppercase',
-              letterSpacing: '0.08em',
-            }}
           >
             {manageState.success}
           </div>
@@ -1462,7 +1427,7 @@ export function ArtGeneratorStudio() {
 
         <div className="manager-danger-zone">
           <span className="manager-danger-hint">
-            Full reset — wipes every uploaded trait, saved rule, and generation from this browser.
+            Full reset. Wipes every uploaded trait, saved rule, and generation from this browser.
           </span>
           <button
             type="button"
@@ -1481,7 +1446,7 @@ export function ArtGeneratorStudio() {
         <div className="panel-header compact-panel-header panel-header-collapsible">
           <div style={{ flex: 1, minWidth: 0 }}>
             <h2 className="uru-h2">Collection rules</h2>
-            <p style={{ margin: '4px 0 0', color: 'var(--anchor-soft)', fontFamily: 'var(--font-round), Klee One, cursive', fontSize: 13 }}>Mark each layer as Always (must include), Never (skipped), or Optional. Optional layers get an appearance chance and can skip other layers when they roll. Trait pairs and layer exclusions apply on top of these rules.</p>
+            <p style={{ margin: '4px 0 0', color: 'var(--fg-muted)', fontSize: 13 }}>Mark each layer as Always (must include), Never (skipped), or Optional. Optional layers get an appearance chance and can skip other layers when they roll. Trait pairs and layer exclusions apply on top of these rules.</p>
           </div>
           <button
             type="button"
@@ -1679,7 +1644,7 @@ export function ArtGeneratorStudio() {
             <div className="panel-header compact-panel-header panel-header-collapsible">
               <div style={{ flex: 1, minWidth: 0 }}>
                 <h3 className="uru-h2" style={{ fontSize: 16 }}>Trait pairs</h3>
-                <p style={{ margin: '4px 0 0', color: 'var(--anchor-soft)', fontFamily: 'var(--font-round), Klee One, cursive', fontSize: 13 }}>Bidirectional. When trait A is rolled, force trait B's layer to B. Useful for matching tail/hair colorways.</p>
+                <p style={{ margin: '4px 0 0', color: 'var(--fg-muted)', fontSize: 13 }}>Bidirectional. When trait A is rolled, force trait B's layer to B. Useful for matching tail/hair colorways.</p>
               </div>
               <button
                 type="button"
@@ -1694,7 +1659,7 @@ export function ArtGeneratorStudio() {
             {!collapsedPairs ? (<>
             <div className="trait-pair-add">
               <select className="uru-input" value={pairDraftA} onChange={(event) => setPairDraftA(event.target.value)}>
-                <option value="">— pick trait A —</option>
+                <option value="">Pick trait A</option>
                 {orderedLayers.map((layer) => (
                   <optgroup key={layer.id} label={layer.name}>
                     {layer.traits.map((trait) => (
@@ -1705,7 +1670,7 @@ export function ArtGeneratorStudio() {
               </select>
               <span className="pair-arrow">↔</span>
               <select className="uru-input" value={pairDraftB} onChange={(event) => setPairDraftB(event.target.value)}>
-                <option value="">— pick trait B —</option>
+                <option value="">Pick trait B</option>
                 {orderedLayers.map((layer) => (
                   <optgroup key={layer.id} label={layer.name}>
                     {layer.traits.map((trait) => (
@@ -1782,7 +1747,7 @@ export function ArtGeneratorStudio() {
             <div className="panel-header compact-panel-header panel-header-collapsible">
               <div style={{ flex: 1, minWidth: 0 }}>
                 <h3 className="uru-h2" style={{ fontSize: 16 }}>Trait conflicts</h3>
-                <p style={{ margin: '4px 0 0', color: 'var(--anchor-soft)', fontFamily: 'var(--font-round), Klee One, cursive', fontSize: 13 }}>&quot;Doesn&apos;t mix with.&quot; If A and B both roll, B is dropped and its layer re-rolls (excluding B). Use for pairs that clip — e.g. specific hats and glasses.</p>
+                <p style={{ margin: '4px 0 0', color: 'var(--fg-muted)', fontSize: 13 }}>&quot;Doesn&apos;t mix with.&quot; If A and B both roll, B is dropped and its layer re-rolls (excluding B). Use for pairs that clip, like specific hats and glasses.</p>
               </div>
               <button
                 type="button"
@@ -1797,7 +1762,7 @@ export function ArtGeneratorStudio() {
             {!collapsedConflicts ? (<>
             <div className="trait-pair-add">
               <select className="uru-input" value={conflictDraftA} onChange={(event) => setConflictDraftA(event.target.value)}>
-                <option value="">— pick trait A —</option>
+                <option value="">Pick trait A</option>
                 {orderedLayers.map((layer) => (
                   <optgroup key={layer.id} label={layer.name}>
                     {layer.traits.map((trait) => (
@@ -1808,7 +1773,7 @@ export function ArtGeneratorStudio() {
               </select>
               <span className="pair-arrow" aria-hidden>✕</span>
               <select className="uru-input" value={conflictDraftB} onChange={(event) => setConflictDraftB(event.target.value)}>
-                <option value="">— pick trait B (dropped on collision) —</option>
+                <option value="">Pick trait B (dropped on collision)</option>
                 {orderedLayers.map((layer) => (
                   <optgroup key={layer.id} label={layer.name}>
                     {layer.traits.map((trait) => (
@@ -1885,7 +1850,7 @@ export function ArtGeneratorStudio() {
             <div className="panel-header compact-panel-header panel-header-collapsible">
               <div style={{ flex: 1, minWidth: 0 }}>
                 <h3 className="uru-h2" style={{ fontSize: 16 }}>Global layer exclusions</h3>
-                <p style={{ margin: '4px 0 0', color: 'var(--anchor-soft)', fontFamily: 'var(--font-round), Klee One, cursive', fontSize: 13 }}>Extra layer skip rules that apply whenever the source layer rolls. Use the per-layer &quot;Skips when present&quot; control above for scoped skips.</p>
+                <p style={{ margin: '4px 0 0', color: 'var(--fg-muted)', fontSize: 13 }}>Extra layer skip rules that apply whenever the source layer rolls. Use the per-layer &quot;Skips when present&quot; control above for scoped skips.</p>
               </div>
               <button
                 type="button"
@@ -1902,7 +1867,7 @@ export function ArtGeneratorStudio() {
               <label className="field-group">
                 <span>Source layer</span>
                 <select className="uru-input" value={exclusionDraftSource} onChange={(event) => setExclusionDraftSource(event.target.value)}>
-                  <option value="">— pick a layer —</option>
+                  <option value="">Pick a layer</option>
                   {orderedLayers
                     .filter((layer) => !rules.layerExclusions.some((rule) => rule.sourceLayerId === layer.id))
                     .map((layer) => (
@@ -2164,8 +2129,8 @@ export function ArtGeneratorStudio() {
       <section className="uru-shell panel collection-preview-panel">
           <div className="panel-header compact-panel-header">
             <h2 className="uru-h2">Random rolls preview (<span className="uru-num">{gallerySeeds.length}</span>)</h2>
-            <p style={{ margin: '4px 0 0', color: 'var(--anchor-soft)', fontFamily: 'var(--font-round), Klee One, cursive', fontSize: 13 }}>
-              <strong>Design-time only.</strong> Random rolls using your current weights and rules — for sanity-checking rarity balance. These are <em>not</em> your final collection. Hit Generate below to render the real tokens.
+            <p style={{ margin: '4px 0 0', color: 'var(--fg-muted)', fontSize: 13 }}>
+              <strong>Design-time only.</strong> Random rolls using your current weights and rules, for sanity-checking rarity balance. These are <em>not</em> your final collection. Hit Generate below to render the real tokens.
             </p>
           </div>
           <div className="gallery-toolbar">
@@ -2239,7 +2204,7 @@ export function ArtGeneratorStudio() {
                     />
                     <span className="uru-stamp uru-stamp-cream gallery-tile-index">#<span className="uru-num">{index + 1}</span></span>
                     {galleryEffectsEnabled && presetLabel ? (
-                      <span className="uru-stamp uru-stamp-pink gallery-tile-preset-badge">{presetLabel}</span>
+                      <span className="uru-stamp gallery-tile-preset-badge">{presetLabel}</span>
                     ) : null}
                   </button>
                 );
@@ -2273,7 +2238,7 @@ export function ArtGeneratorStudio() {
           style={{
             position: 'fixed',
             inset: 0,
-            background: 'rgba(58,44,58,0.55)',
+            background: 'var(--overlay)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',

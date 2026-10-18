@@ -55,7 +55,7 @@ function TokenTile({ output, onClick }: TokenTileProps) {
         flexDirection: 'column',
         gap: 6,
         alignItems: 'stretch',
-        background: 'var(--paper-white)',
+        background: 'var(--surface-2)',
       }}
     >
       <div
@@ -63,8 +63,8 @@ function TokenTile({ output, onClick }: TokenTileProps) {
           position: 'relative',
           width: '100%',
           aspectRatio: '1 / 1',
-          background: 'var(--cream-deep)',
-          border: '1px solid var(--anchor)',
+          background: 'var(--surface-2)',
+          border: '1px solid var(--line)',
           borderRadius: 6,
           overflow: 'hidden',
         }}
@@ -78,7 +78,7 @@ function TokenTile({ output, onClick }: TokenTileProps) {
         {output.isStatic ? (
           <span
             className="uru-stamp uru-stamp-pink"
-            style={{ position: 'absolute', top: 4, right: 4, transform: 'rotate(6deg)', fontSize: 10 }}
+            style={{ position: 'absolute', top: 4, right: 4 }}
           >
             1 / 1
           </span>
@@ -124,7 +124,7 @@ function DetailOverlay({ output, onClose, onDelete, onReroll, onOpenSwap, reroll
       style={{
         position: 'fixed',
         inset: 0,
-        background: 'rgba(58,44,58,0.55)',
+        background: 'var(--overlay)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
@@ -153,8 +153,8 @@ function DetailOverlay({ output, onClose, onDelete, onReroll, onOpenSwap, reroll
             maxWidth: 360,
             marginLeft: 'auto',
             marginRight: 'auto',
-            background: 'var(--paper-white)',
-            border: '1.5px solid var(--anchor)',
+            background: 'var(--surface-2)',
+            border: '1px solid var(--line)',
             borderRadius: 8,
             overflow: 'hidden',
           }}
@@ -165,7 +165,7 @@ function DetailOverlay({ output, onClose, onDelete, onReroll, onOpenSwap, reroll
           ) : null}
         </div>
 
-        <h4 className="uru-eyebrow" style={{ marginTop: 14 }}>attributes</h4>
+        <h4 className="uru-eyebrow" style={{ marginTop: 14 }}>Attributes</h4>
         <ul className="uru-list-flower" style={{ marginTop: 6 }}>
           {output.traits.map((trait, idx) => (
             <li key={`${trait.layerName}-${idx}`}>
@@ -178,12 +178,12 @@ function DetailOverlay({ output, onClose, onDelete, onReroll, onOpenSwap, reroll
             </li>
           ))}
           {output.traits.length === 0 && !output.customAttributes?.length ? (
-            <li style={{ color: 'var(--anchor-soft)' }}>no attributes recorded</li>
+            <li style={{ color: 'var(--fg-muted)' }}>No attributes recorded</li>
           ) : null}
         </ul>
 
         {output.customDescription ? (
-          <p style={{ marginTop: 10, fontFamily: 'var(--font-body), Georgia, serif', fontSize: 14, lineHeight: 1.55 }}>
+          <p style={{ marginTop: 10, fontSize: 14, lineHeight: 1.55 }}>
             {output.customDescription}
           </p>
         ) : null}
@@ -197,7 +197,7 @@ function DetailOverlay({ output, onClose, onDelete, onReroll, onOpenSwap, reroll
               disabled={rerolling}
               onClick={() => onReroll(output.tokenId)}
             >
-              {rerolling ? 'Rerolling…' : 'Reroll ✿'}
+              {rerolling ? 'Rerolling…' : 'Reroll'}
             </button>
           ) : null}
           <button type="button" className="uru-btn" onClick={() => onOpenSwap(output)}>
@@ -320,8 +320,8 @@ export function CollectionBrowser({ library, rules, weights }: CollectionBrowser
   return (
     <section className="uru-shell collection-browser">
       <div className="panel-header compact-panel-header">
-        <h2 className="uru-h2">Collection browser ✿</h2>
-        <p style={{ margin: '4px 0 0', color: 'var(--anchor-soft)', fontFamily: 'var(--font-round), Klee One, cursive', fontSize: 13 }}>
+        <h2 className="uru-h2">Collection browser</h2>
+        <p style={{ margin: '4px 0 0', color: 'var(--fg-muted)', fontSize: 13 }}>
           Every token you&apos;ve generated lives here. Click a tile to view, reroll, swap, or delete.
         </p>
       </div>
@@ -396,19 +396,18 @@ export function CollectionBrowser({ library, rules, weights }: CollectionBrowser
         <div style={{ flex: 1 }} />
         <button
           type="button"
-          className="uru-btn uru-btn-primary"
+          className="uru-btn"
           disabled={!library}
           onClick={() => setOneOfOneOpen(true)}
         >
-          Add 1-of-1 ✿
+          Add 1-of-1
         </button>
       </div>
 
       {error ? (
         <div
           role="alert"
-          className="uru-shell-tight"
-          style={{ marginTop: 10, borderColor: 'var(--pink-hot)', background: 'var(--pink-warm)', fontFamily: 'var(--font-pixel), monospace', fontSize: 12, textTransform: 'uppercase' }}
+          className="uru-banner" data-tone="error" style={{ marginTop: 10 }}
         >
           {error}
         </div>
@@ -417,8 +416,8 @@ export function CollectionBrowser({ library, rules, weights }: CollectionBrowser
       {filtered.length === 0 ? (
         <div className="uru-bubble" style={{ marginTop: 16 }}>
           {total === 0
-            ? 'generate a collection to see it here ✿'
-            : 'no tokens match the current filter — clear filters to see them all.'}
+            ? 'Generate a collection to see it here.'
+            : 'No tokens match the current filter. Clear filters to see them all.'}
         </div>
       ) : (
         <div

@@ -77,7 +77,7 @@ export function TokenSwapEditor({ output, library, onClose, onSaved }: TokenSwap
       style={{
         position: 'fixed',
         inset: 0,
-        background: 'rgba(58,44,58,0.65)',
+        background: 'var(--overlay)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
@@ -107,8 +107,8 @@ export function TokenSwapEditor({ output, library, onClose, onSaved }: TokenSwap
           <div
             style={{
               aspectRatio: '1 / 1',
-              background: 'var(--paper-white)',
-              border: '1.5px solid var(--anchor)',
+              background: 'var(--surface-2)',
+              border: '1px solid var(--line)',
               borderRadius: 10,
               overflow: 'hidden',
             }}
@@ -117,15 +117,15 @@ export function TokenSwapEditor({ output, library, onClose, onSaved }: TokenSwap
               // eslint-disable-next-line @next/next/no-img-element
               <img src={previewUrl} alt="Token preview" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
             ) : (
-              <div style={{ display: 'grid', placeItems: 'center', height: '100%', color: 'var(--anchor-soft)' }}>
-                <span className="uru-eyebrow">rendering…</span>
+              <div style={{ display: 'grid', placeItems: 'center', height: '100%', color: 'var(--fg-muted)' }}>
+                <span className="uru-eyebrow">Rendering…</span>
               </div>
             )}
           </div>
 
           <div style={{ display: 'grid', gap: 10 }}>
             {library.layers.length === 0 ? (
-              <div className="uru-bubble">no layers to swap yet.</div>
+              <div className="uru-bubble">No layers to swap yet.</div>
             ) : (
               library.layers.map((layer) => (
                 <label key={layer.id} className="field-group" style={{ display: 'grid', gap: 4 }}>
@@ -142,7 +142,7 @@ export function TokenSwapEditor({ output, library, onClose, onSaved }: TokenSwap
                       })
                     }
                   >
-                    <option value="">— none —</option>
+                    <option value="">None</option>
                     {layer.traits.map((trait) => (
                       <option key={trait.id} value={trait.id}>{trait.name}</option>
                     ))}
@@ -156,8 +156,7 @@ export function TokenSwapEditor({ output, library, onClose, onSaved }: TokenSwap
         {error ? (
           <div
             role="alert"
-            className="uru-shell-tight"
-            style={{ marginTop: 12, borderColor: 'var(--pink-hot)', background: 'var(--pink-warm)', fontFamily: 'var(--font-pixel), monospace', fontSize: 12, textTransform: 'uppercase' }}
+            className="uru-banner" data-tone="error" style={{ marginTop: 12 }}
           >
             {error}
           </div>

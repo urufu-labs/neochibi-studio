@@ -1,582 +1,318 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import type { ReactNode } from 'react';
+
+import { GuideToc } from '@/components/guide-toc';
+import styles from '@/styles/guide.module.css';
 
 export const metadata: Metadata = {
-  title: 'how to · urufulabs studio',
-  description: 'A friendly walkthrough for making your first NFT collection with urufulabs studio.',
+  title: 'How it works · urufulabs studio',
+  description: 'A walkthrough for making your first generative NFT collection with urufulabs studio.',
 };
 
-const steps = [
+/// Guide for the studio, laid out like the launchpad's /docs page: contents rail,
+/// one reading column, a notes rail. Plain words, sentence case, no em dashes.
+
+const SECTIONS = [
+  { id: 'overview', label: 'How it works' },
+  { id: 'import', label: '1. Import your art' },
+  { id: 'tune', label: '2. Tune rarity and rules' },
+  { id: 'generate', label: '3. Generate' },
+  { id: 'review', label: 'Fix and add tokens' },
+  { id: 'publish', label: 'Publish or download' },
+  { id: 'tips', label: 'Tips' },
+  { id: 'faq', label: 'FAQ' },
+];
+
+const IMPORT_STEPS = [
   {
-    n: '01',
-    jp: '一',
-    title: 'name your collection',
-    tape: 'uru-tape-mizuiro',
-    tapeRotate: -4,
-    tapeOffset: { top: -10, left: 24 },
-    body: (
-      <>
-        <p>
-          click the <strong style={{ fontFamily: 'var(--font-pixel), monospace' }}>✿ untitled collection</strong>{' '}
-          stamp at the top of the studio and give your set a name. this becomes the collection title in every token&apos;s
-          metadata later ✿
-        </p>
-        <ul className="uru-list-flower" style={{ marginTop: 8 }}>
-          <li>press <kbd>enter</kbd> to save</li>
-          <li>press <kbd>esc</kbd> to cancel and keep the old name</li>
-          <li>you can rename it any time, even after generating</li>
-        </ul>
-      </>
-    ),
+    title: 'Name your collection',
+    body: 'Click the collection name under the Trait forge title and type a new one. Enter saves, Esc cancels. You can rename it any time, even after generating.',
   },
   {
-    n: '02',
-    jp: '二',
-    title: 'drop your trait folders',
-    tape: 'uru-tape-pink',
-    tapeRotate: 5,
-    tapeOffset: { top: -8, right: 30 },
-    body: (
-      <>
-        <p>
-          drag a folder of subfolders into the pink dashed zone. each subfolder becomes a{' '}
-          <strong>layer</strong> (background, body, eyes, hat…) and each png inside becomes a{' '}
-          <strong>trait</strong>.
-        </p>
-        <p style={{ marginTop: 8 }}>
-          folder structure it expects:
-        </p>
-        <pre
-          className="uru-num"
-          style={{
-            marginTop: 6,
-            padding: '10px 12px',
-            background: 'var(--paper-white)',
-            border: '1.5px solid var(--anchor)',
-            borderRadius: 10,
-            fontSize: 12,
-            lineHeight: 1.5,
-            overflowX: 'auto',
-          }}
-        >{`my-collection/
-├─ background/
-│   ├─ sky.png
-│   └─ dusk.png
-├─ body/
-│   ├─ pink.png
-│   └─ mint.png
-└─ hat/
-    ├─ beanie.png
-    └─ crown.png`}</pre>
-        <p style={{ marginTop: 8 }}>
-          no folders? click <strong>+ add layer / files</strong> instead and pick pngs one at a time.
-        </p>
-      </>
-    ),
+    title: 'Drop your trait folders',
+    body: 'Drag one folder that holds a subfolder per layer onto the import strip, or click Add traits to pick them. Each subfolder becomes a layer and each image inside becomes a trait.',
   },
   {
-    n: '03',
-    jp: '三',
-    title: 'rename, reorder, delete',
-    tape: 'uru-tape-mint',
-    tapeRotate: -3,
-    tapeOffset: { top: -8, left: 40 },
-    body: (
-      <>
-        <p>
-          you own everything you upload. click any layer or trait name to rename it — the pretty name shows up in
-          the token metadata; the filename stays hidden.
-        </p>
-        <ul className="uru-list-flower" style={{ marginTop: 8 }}>
-          <li>use the <span className="uru-chip" style={{ padding: '2px 8px' }}>↑</span>{' '}
-              <span className="uru-chip" style={{ padding: '2px 8px' }}>↓</span> chips to reorder layers back-to-front</li>
-          <li>hover a trait row to reveal <span className="uru-eyebrow">delete</span> — it warns you first if any
-              rule references it</li>
-          <li>delete a whole layer with the danger button on the layer card. same warning shows what breaks</li>
-        </ul>
-      </>
-    ),
+    title: 'Put the layers in order',
+    body: 'Layers stack top to bottom, so the first layer is drawn first (the background). Drag a layer card or use the up and down arrows, then press Save order.',
   },
   {
-    n: '04',
-    jp: '四',
-    title: 'tune weights & rules',
-    tape: 'uru-tape-yolk',
-    tapeRotate: 4,
-    tapeOffset: { top: -10, right: 24 },
-    body: (
-      <>
-        <p>
-          not every trait should be equally common. bump the{' '}
-          <strong>weight</strong> on a rare trait, drop it on a common one. the studio biases the roll toward higher
-          weights when it generates.
-        </p>
-        <p style={{ marginTop: 8 }}>
-          use <strong>rules</strong> to keep pairings sensible:
-        </p>
-        <ul className="uru-list-flower" style={{ marginTop: 6 }}>
-          <li><strong>require</strong> — this trait must appear with that one (crown → cape)</li>
-          <li><strong>forbid</strong> — never let these two show up together (sunglasses + monocle)</li>
-          <li><strong>must-pair</strong> — treat two layers as a locked combo</li>
-        </ul>
-      </>
-    ),
+    title: 'Rename, replace or delete',
+    body: 'Rename a layer or trait right on its card. The name you type is what shows up in token metadata. Replace swaps a trait image in place, and Delete warns you first if a rule uses it.',
   },
   {
-    n: '05',
-    jp: '五',
-    title: 'generate up to 10,000',
-    tape: 'uru-tape-mizuiro',
-    tapeRotate: -5,
-    tapeOffset: { top: -8, left: 30 },
-    body: (
-      <>
-        <p>
-          scroll to <strong>generate collection ✿</strong>. set your target size (any number up to 10,000), hit
-          the big button, and watch the counters climb.
-        </p>
-        <p style={{ marginTop: 8 }}>
-          during the run you get:
-        </p>
-        <ul className="uru-list-flower" style={{ marginTop: 6 }}>
-          <li>live <span className="uru-num">done / total</span> counters</li>
-          <li>rate / second and estimated time remaining</li>
-          <li>a tape reel of the last 6 tokens rendered</li>
-          <li>a big <span className="uru-eyebrow">cancel</span> button — nothing is destroyed if you stop mid-run</li>
-        </ul>
-        <p style={{ marginTop: 8, color: 'var(--anchor-soft)', fontFamily: 'var(--font-round), Klee One, cursive' }}>
-          runs entirely in your browser. nothing uploads until you say so.
-        </p>
-      </>
-    ),
-  },
-  {
-    n: '06',
-    jp: '六',
-    title: 'publish or download',
-    tape: 'uru-tape-pink',
-    tapeRotate: 6,
-    tapeOffset: { top: -8, right: 40 },
-    body: (
-      <>
-        <p>
-          happy with the results? you have two ways out — pick either, or do both.
-        </p>
-        <p style={{ marginTop: 10 }}>
-          <strong style={{ color: 'var(--pink-hot)' }}>publish to ipfs</strong> — images get pinned as one directory,
-          then a matching ERC-721 metadata directory referencing those images gets pinned right after. you get back
-          one <strong>metadata CID</strong> your launchpad or contract uses as{' '}
-          <span className="uru-num">baseURI</span>. token metadata lives at{' '}
-          <span className="uru-num">ipfs://METADATA_CID/{`{tokenId}`}.json</span>.
-        </p>
-        <p style={{ marginTop: 10 }}>
-          <strong style={{ color: 'var(--mint-hot)' }}>download bundle</strong> — grab a single zip you can host
-          anywhere (S3, arweave, your own gateway, whatever). inside you get{' '}
-          <span className="uru-num">images/</span>, <span className="uru-num">metadata/</span>, and a{' '}
-          <span className="uru-num">README.txt</span> explaining how to rewrite the image URL prefix after upload.
-          set the prefix before you download if you already know where images are going, or leave the placeholder
-          and find-and-replace later.
-        </p>
-        <p style={{ marginTop: 10, color: 'var(--anchor-soft)', fontFamily: 'var(--font-round), Klee One, cursive' }}>
-          nothing leaves your browser until you press one of these buttons ｡◕‿‿◕｡
-        </p>
-      </>
-    ),
-  },
-  {
-    n: '07',
-    jp: '七',
-    title: 'review your collection',
-    tape: 'uru-tape-mint',
-    tapeRotate: -6,
-    tapeOffset: { top: -10, left: 22 },
-    body: (
-      <>
-        <p>
-          after generation, scroll to <strong>collection browser ✿</strong>. every finished token
-          lives here — filter by trait, sort, or jump to a specific token id.
-        </p>
-        <p style={{ marginTop: 8 }}>
-          click any tile to open it. from there you can:
-        </p>
-        <ul className="uru-list-flower" style={{ marginTop: 6 }}>
-          <li><strong>reroll</strong> — pick a new random combination for that same token id</li>
-          <li><strong>swap traits</strong> — hand-pick a specific trait per layer, live preview, save</li>
-          <li><strong>delete</strong> — drop it entirely if it&apos;s a dud</li>
-        </ul>
-        <p style={{ marginTop: 8, color: 'var(--anchor-soft)', fontFamily: 'var(--font-round), Klee One, cursive' }}>
-          all edits happen locally. nothing re-uploads until you re-publish.
-        </p>
-      </>
-    ),
-  },
-  {
-    n: '08',
-    jp: '八',
-    title: 'one-of-a-kind bonus tokens',
-    tape: 'uru-tape-yolk',
-    tapeRotate: 5,
-    tapeOffset: { top: -8, right: 40 },
-    body: (
-      <>
-        <p>
-          want a special token outside the algorithm? click{' '}
-          <strong>Add 1-of-1 ✿</strong> in the browser toolbar.
-        </p>
-        <p style={{ marginTop: 8 }}>two ways to add one:</p>
-        <ul className="uru-list-flower" style={{ marginTop: 6 }}>
-          <li><strong>upload</strong> — drop in a finished png you made outside the studio</li>
-          <li><strong>compose from traits</strong> — hand-pick a specific combination from your layers</li>
-        </ul>
-        <p style={{ marginTop: 8 }}>
-          give it a name, a description, and any custom attributes you like. 1-of-1s{' '}
-          <strong>append to the end</strong> (highest token ids) and{' '}
-          <strong>survive regeneration</strong> — if you re-generate the algorithm collection later, your bonus
-          tokens stay untouched ♡
-        </p>
-      </>
-    ),
+    title: 'Check it in the preview',
+    body: 'Pick a trait per layer, or press Shuffle in the single-token preview to roll a random one. Effects (outlines, grain, color tweaks) are optional and only apply to the preview export.',
   },
 ];
 
-const tips = [
-  { jp: '✿', text: 'transparent pngs stack correctly — save each layer with a clean alpha channel.' },
-  { jp: '❁', text: 'keep every trait the same canvas size (e.g. 512×512). traits with different dimensions will misalign.' },
-  { jp: '✦', text: 'refresh the page any time — everything lives in your browser storage, nothing is lost.' },
-  { jp: '☆', text: 'change your mind about a layer name? rename it. metadata still uses the new name on your next generate.' },
-  { jp: '♡', text: 'the shuffle button re-rolls the preview with the current traits and weights. use it to sanity-check before generating 10k.' },
-  { jp: '❋', text: 'don’t like a token you got? open the collection browser, click it, hit reroll or swap traits. no need to regenerate the whole set.' },
-  { jp: '❉', text: '1-of-1 bonus tokens live outside the algorithm — perfect for founder editions, ultra-rares, or story-driven picks.' },
+const RULES = [
+  { name: 'Always, Optional, Never', what: 'Per layer. Always means every token gets one, Never skips the layer, Optional gives it a chance to appear that you set in percent.' },
+  { name: 'Skips when present', what: 'When an optional layer rolls, it can switch off other layers. Example: a hood that hides the hair layer.' },
+  { name: 'Trait subset', what: 'Limit a layer to only some of its traits without deleting the rest.' },
+  { name: 'Trait pairs', what: 'Two traits that always go together. When A rolls, B is forced on its layer. Good for matching colorways.' },
+  { name: 'Trait conflicts', what: 'Two traits that never go together. If both roll, the second is dropped and its layer rolls again.' },
+  { name: 'Layer exclusions', what: 'Extra skip rules that apply every time a source layer rolls.' },
 ];
+
+const PUBLISH_OPTIONS = [
+  {
+    title: 'Publish to IPFS',
+    body: 'Pins your images as one folder, then the ERC-721 metadata as a second folder. You get one metadata CID to use as baseURI, plus buttons that open the urufu labs launchpad with the NFT or DN404 form already filled in.',
+  },
+  {
+    title: 'Download bundle',
+    body: 'One zip with images/, metadata/ and a README. Host it anywhere (your own server, S3, Arweave). Set the image URL prefix before you download, or leave the placeholder and find-and-replace it later.',
+  },
+];
+
+const TIPS = [
+  'Save every layer as a transparent PNG so the stack lines up cleanly.',
+  'Keep every trait the same canvas size, for example 1024 x 1024. Mixed sizes will misalign.',
+  'Your work lives in this browser. Refreshing is safe, but clearing site data or switching browsers starts you fresh.',
+  'Use Random rolls on the Tune tab to sanity-check rarity before you generate 10,000.',
+  'Collection stats show how many unique combinations your rules allow. Aim for at least 2x your target size.',
+  'A bad token does not mean regenerating everything. Open it in the collection browser and reroll or swap traits.',
+];
+
+const FAQ = [
+  {
+    q: 'Does my art leave my computer?',
+    a: 'No. Every trait, weight, rule and generated token stays in your browser until you press Publish to IPFS. Download bundle never uploads anything.',
+  },
+  {
+    q: 'Is there a maximum collection size?',
+    a: 'The target caps at 10,000 to keep generation smooth. Below that, make as many or as few as you like.',
+  },
+  {
+    q: 'Do I need a wallet?',
+    a: 'Not to design or generate. You only need one when you launch the collection on urufu labs or another launchpad.',
+  },
+  {
+    q: 'How many unique tokens can my layers make?',
+    a: 'Multiply the trait count of every layer. Five layers with six traits each give 7,776 combinations. Optional layers and rules change the number, so check Collection stats on the Tune tab.',
+  },
+  {
+    q: 'What if I close the tab while it generates?',
+    a: 'Tokens that already finished stay saved in your browser. Start Generate again when you are back.',
+  },
+  {
+    q: 'What happens to my 1-of-1s if I regenerate?',
+    a: 'The studio asks first. Keep leaves your 1-of-1s untouched and only redoes the generated tokens. Wipe clears everything and starts over.',
+  },
+];
+
+function Section({ id, title, sub, children }: { id: string; title: string; sub?: string; children: ReactNode }) {
+  return (
+    <section id={id} className={styles.section} aria-labelledby={`${id}-title`}>
+      <h2 id={`${id}-title`}>{title}</h2>
+      {sub ? <p className={styles.sub}>{sub}</p> : null}
+      {children}
+    </section>
+  );
+}
+
+function Steps({ items }: { items: Array<{ title: string; body: string }> }) {
+  return (
+    <ol className={styles.steps}>
+      {items.map((step, i) => (
+        <li key={step.title}>
+          <span className={styles.stepNum}>{String(i + 1).padStart(2, '0')}</span>
+          <div>
+            <h3>{step.title}</h3>
+            <p>{step.body}</p>
+          </div>
+        </li>
+      ))}
+    </ol>
+  );
+}
 
 export default function HowToPage() {
   return (
-    <div
-      className="uru-home-shell"
-      style={{
-        width: 'min(100% - 32px, 1120px)',
-        margin: '28px auto 64px',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 24,
-      }}
-    >
-      {/* Hero */}
-      <section style={{ position: 'relative', paddingTop: 8 }}>
-        <span
-          className="uru-tape uru-tape-yolk"
-          aria-hidden
-          style={{ position: 'absolute', top: -6, left: 40, transform: 'rotate(-5deg)' }}
-        />
-        <span
-          className="uru-tape uru-tape-pink"
-          aria-hidden
-          style={{ position: 'absolute', top: -6, right: 60, transform: 'rotate(4deg)' }}
-        />
-        <div className="uru-shell" style={{ textAlign: 'center' }}>
-          <p className="uru-eyebrow">the urufulabs studio ✿ how-to</p>
-          <h1
-            className="uru-h1"
-            style={{ margin: '10px 0 8px', fontSize: 'clamp(32px, 6vw, 56px)' }}
-          >
-            make your first{' '}
-            <span style={{ color: 'var(--pink-hot)' }}>collection</span>
-            <span
-              style={{
-                display: 'inline-block',
-                fontFamily: 'var(--font-jp), DotGothic16, monospace',
-                color: 'var(--mint-hot)',
-                marginLeft: 8,
-              }}
-            >
-              ♡
-            </span>
-          </h1>
-          <p
-            style={{
-              margin: '0 auto',
-              maxWidth: 620,
-              fontFamily: 'var(--font-round), Klee One, cursive',
-              color: 'var(--anchor-soft)',
-              fontSize: 15,
-              lineHeight: 1.55,
-            }}
-          >
-            eight little steps — drop your art, tune the weights, generate up to 10,000 tokens right in your browser,
-            review and rework any of them, then publish to IPFS or download a zip you host yourself. no wallet needed to create ✿
+    <main className={styles.page}>
+      <header className={styles.header} aria-labelledby="howto-title">
+        <div>
+          <p className={styles.eyebrow}>Guide</p>
+          <h1 id="howto-title" className={styles.title}>Make your first collection</h1>
+          <p className={styles.lede}>
+            Upload your trait layers, set how rare each one is, and generate up to 10,000 unique tokens right in
+            your browser. Then publish to IPFS and launch on urufu labs, or download a zip you host yourself.
           </p>
-          <div
-            className="uru-shell-inner"
-            style={{
-              marginTop: 14,
-              maxWidth: 680,
-              marginLeft: 'auto',
-              marginRight: 'auto',
-              padding: '12px 14px',
-              textAlign: 'left',
-              fontFamily: 'var(--font-body), Georgia, serif',
-              fontSize: 14,
-              lineHeight: 1.6,
-            }}
-          >
-            <p style={{ margin: 0 }}>
-              <strong>how it works:</strong> urufulabs studio produces the whole collection <em>combinatorially</em>.
-              you don&apos;t draw each token — you upload trait layers (background, body, eyes, hat…) and the
-              studio combines them into thousands of unique tokens for you.
-            </p>
-            <p style={{ margin: '8px 0 0' }}>
-              <strong>how big can it be?</strong> the math is trait count per layer, multiplied.
-              <span className="uru-num"> 5×6 = 7,776</span> possible.{' '}
-              <span className="uru-num">5×10 = 100,000</span>.{' '}
-              <span className="uru-num">6×8 = 262,144</span>. want 10k? aim for at least ~2× headroom
-              so the generator doesn&apos;t exhaust unique combinations.
-            </p>
-          </div>
-          <div
-            style={{
-              marginTop: 16,
-              display: 'flex',
-              flexWrap: 'wrap',
-              gap: 10,
-              justifyContent: 'center',
-            }}
-          >
-            <Link href="/studio" className="uru-btn uru-btn-primary">
-              open the studio →
-            </Link>
-            <a href="#step-01" className="uru-btn uru-btn-cream">
-              read the walkthrough
-            </a>
-          </div>
-          <div
-            style={{
-              marginTop: 16,
-              display: 'flex',
-              flexWrap: 'wrap',
-              gap: 8,
-              justifyContent: 'center',
-            }}
-          >
-            <span className="uru-stamp uru-stamp-mint">100% in-browser</span>
-            <span className="uru-stamp uru-stamp-mizuiro">
-              up to <span className="uru-num">10,000</span> tokens
-            </span>
-            <span className="uru-stamp uru-stamp-yolk">ERC-721 metadata</span>
-            <span className="uru-stamp uru-stamp-pink">IPFS ready</span>
-            <span className="uru-stamp uru-stamp-mint">or download zip</span>
-          </div>
         </div>
-      </section>
-
-      {/* Numbered polaroid steps */}
-      <section
-        aria-label="walkthrough steps"
-        style={{
-          display: 'grid',
-          gap: 20,
-          gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
-        }}
-      >
-        {steps.map((step) => (
-          <article
-            key={step.n}
-            id={`step-${step.n}`}
-            className="uru-polaroid"
-            style={{ position: 'relative', padding: '20px 20px 28px' }}
-          >
-            <span
-              className={`uru-tape ${step.tape}`}
-              aria-hidden
-              style={{
-                position: 'absolute',
-                transform: `rotate(${step.tapeRotate}deg)`,
-                ...step.tapeOffset,
-              }}
-            />
-            <header style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
-              <span
-                aria-hidden
-                className="inline-flex items-center justify-center"
-                style={{
-                  width: 44,
-                  height: 44,
-                  borderRadius: '50%',
-                  background: 'var(--pink-hot)',
-                  color: '#fff',
-                  border: '1.5px solid var(--anchor)',
-                  boxShadow: '2px 2px 0 var(--anchor)',
-                  fontFamily: 'var(--font-jp), DotGothic16, monospace',
-                  fontSize: 22,
-                  lineHeight: 1,
-                }}
-              >
-                {step.jp}
-              </span>
-              <div style={{ display: 'flex', flexDirection: 'column' }}>
-                <span className="uru-eyebrow">step <span className="uru-num">{step.n}</span></span>
-                <h2 className="uru-h2" style={{ margin: 0 }}>
-                  {step.title}
-                </h2>
-              </div>
-            </header>
-            <div
-              style={{
-                fontFamily: 'var(--font-body), Georgia, serif',
-                fontSize: 14.5,
-                lineHeight: 1.6,
-                color: 'var(--anchor)',
-              }}
-            >
-              {step.body}
-            </div>
-          </article>
-        ))}
-      </section>
-
-      {/* Tips shell */}
-      <section className="uru-shell" style={{ position: 'relative' }}>
-        <span
-          className="uru-tape uru-tape-mint"
-          aria-hidden
-          style={{ position: 'absolute', top: -8, right: 30, transform: 'rotate(4deg)' }}
-        />
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 10 }}>
-          <span
-            aria-hidden
-            className="uru-stamp uru-stamp-mizuiro"
-            style={{ transform: 'rotate(-4deg)' }}
-          >
-            pro tips
-          </span>
-          <h2 className="uru-h2" style={{ margin: 0 }}>
-            little things that help ✿
-          </h2>
-        </div>
-        <ul className="uru-list-flower" style={{ margin: 0, display: 'grid', gap: 6 }}>
-          {tips.map((tip) => (
-            <li key={tip.text} style={{ fontFamily: 'var(--font-body), Georgia, serif', fontSize: 14.5, lineHeight: 1.55 }}>
-              <span
-                aria-hidden
-                style={{
-                  fontFamily: 'var(--font-jp), DotGothic16, monospace',
-                  color: 'var(--pink-hot)',
-                  marginRight: 6,
-                }}
-              >
-                {tip.jp}
-              </span>
-              {tip.text}
-            </li>
-          ))}
-        </ul>
-      </section>
-
-      {/* FAQ */}
-      <section className="uru-shell" style={{ position: 'relative' }}>
-        <span
-          className="uru-tape uru-tape-pink"
-          aria-hidden
-          style={{ position: 'absolute', top: -8, left: 40, transform: 'rotate(-4deg)' }}
-        />
-        <p className="uru-eyebrow" style={{ marginBottom: 4 }}>frequently curious</p>
-        <h2 className="uru-h2" style={{ marginTop: 0, marginBottom: 14 }}>
-          quick questions
-        </h2>
-        <div style={{ display: 'grid', gap: 12 }}>
-          {[
-            {
-              q: 'does my art leave my computer?',
-              a: 'no. every trait, weight, rule, and generated token lives in your browser storage until you press publish. we do not upload anything before then ✿',
-            },
-            {
-              q: 'is there a maximum collection size?',
-              a: 'the target field caps at 10,000 to keep things smooth. below that, generate as many or as few as you like.',
-            },
-            {
-              q: 'do i need a wallet to create?',
-              a: 'no wallet needed to design or generate. you only need one later when a launchpad or contract asks you to plug in the metadata CID.',
-            },
-            {
-              q: 'do i have to use ipfs?',
-              a: "nope. hit Download bundle ✿ instead and you get a zip with images/, metadata/, and a README. host it anywhere you like — s3, arweave, your own gateway. the README shows exactly how to swap the image URL prefix in every metadata json after you upload.",
-            },
-            {
-              q: 'what happens if i close the tab mid-generate?',
-              a: 'anything already rendered stays saved in your browser. cancel or refresh — you can resume with the same seed and pick up where you left off.',
-            },
-            {
-              q: 'can i come back tomorrow?',
-              a: 'yes. layers, traits, rules, weights, and finished tokens persist between sessions on the same device.',
-            },
-            {
-              q: 'do i have to create each nft one by one?',
-              a: "no — the studio is generative. you upload trait layers once, and it combines them algorithmically into your whole collection. you don't hand-craft individual tokens.",
-            },
-            {
-              q: 'can i fix a bad token after generation?',
-              a: 'yes. open the collection browser, click any token, and either reroll it (new random combo, same token id), or swap traits to hand-pick which trait from each layer it uses.',
-            },
-            {
-              q: 'can i add a special one-of-a-kind?',
-              a: "yes. in the collection browser, click Add 1-of-1 ✿. upload a fully-composed png or compose one from your traits. it appends to the end of the collection with a '1 of 1' marker and survives future full-collection regenerations.",
-            },
-            {
-              q: 'what happens to my 1-of-1s if i regenerate the collection?',
-              a: 'when you press Generate again with 1-of-1s in the collection, the studio asks whether to keep them. keep = 1-of-1s untouched, algorithm tokens redone. wipe = everything cleared and restarted.',
-            },
-          ].map((item) => (
-            <details
-              key={item.q}
-              className="uru-shell-inner"
-              style={{ borderRadius: 10 }}
-            >
-              <summary
-                className="uru-h2"
-                style={{
-                  cursor: 'pointer',
-                  listStyle: 'none',
-                  fontSize: 16,
-                  color: 'var(--anchor)',
-                }}
-              >
-                <span style={{ color: 'var(--pink-hot)', marginRight: 6 }}>✿</span>
-                {item.q}
-              </summary>
-              <p
-                style={{
-                  marginTop: 8,
-                  fontFamily: 'var(--font-body), Georgia, serif',
-                  fontSize: 14.5,
-                  lineHeight: 1.6,
-                }}
-              >
-                {item.a}
-              </p>
-            </details>
-          ))}
-        </div>
-      </section>
-
-      {/* Closing CTA */}
-      <section
-        className="uru-shell-tight"
-        style={{
-          textAlign: 'center',
-          padding: '18px 20px',
-          borderColor: 'var(--pink-hot)',
-          background: 'var(--pink-warm)',
-        }}
-      >
-        <p className="uru-eyebrow" style={{ marginBottom: 6 }}>ready?</p>
-        <h2 className="uru-h1" style={{ margin: 0, fontSize: 'clamp(22px, 4vw, 32px)' }}>
-          let&apos;s make some art ✿
-        </h2>
-        <div style={{ marginTop: 12 }}>
-          <Link href="/studio" className="uru-btn uru-btn-primary">
-            open urufulabs studio →
+        <div className={styles.actions}>
+          <Link href="/studio" className="ui-btn" data-variant="primary" data-size="lg">
+            Open the studio
           </Link>
         </div>
-      </section>
-    </div>
+      </header>
+
+      <div className={styles.layout}>
+        <GuideToc label="Contents" items={SECTIONS} />
+
+        <article className={styles.content}>
+          <Section id="overview" title="How it works">
+            <p className={styles.prose}>
+              You don&apos;t draw each token. You draw the parts (backgrounds, bodies, eyes, hats) as separate
+              layers, and the studio combines them into unique tokens for you. The studio has three tabs that
+              follow the same order as this guide: <strong>Import</strong>, <strong>Tune</strong> and{' '}
+              <strong>Generate</strong>.
+            </p>
+            <div className={styles.metrics}>
+              <div className={styles.metric}>
+                <span>Max tokens</span>
+                <b>10,000</b>
+              </div>
+              <div className={styles.metric}>
+                <span>Runs on</span>
+                <b>Your device</b>
+              </div>
+              <div className={styles.metric}>
+                <span>Metadata</span>
+                <b>ERC-721</b>
+              </div>
+            </div>
+          </Section>
+
+          <Section
+            id="import"
+            title="1. Import your art"
+            sub="Get your layers in, in the right order, and check a few combinations by eye."
+          >
+            <p className={styles.groupTitle}>Folder layout</p>
+            <pre className={styles.code}>{`my-collection/
+├─ background/
+│  ├─ sky.png
+│  └─ dusk.png
+├─ body/
+│  ├─ pink.png
+│  └─ mint.png
+└─ hat/
+   ├─ beanie.png
+   └─ crown.png`}</pre>
+            <Steps items={IMPORT_STEPS} />
+            <div className={styles.callout} data-tone="info">
+              <span className={styles.calloutLabel}>Paste from anywhere</span>
+              Press Paste new on a layer, then Ctrl+V (Cmd+V on Mac) an image to add it as a new trait. Replace works
+              the same way for an existing trait.
+            </div>
+          </Section>
+
+          <Section
+            id="tune"
+            title="2. Tune rarity and rules"
+            sub="Decide how common each trait is and which combinations are allowed."
+          >
+            <p className={styles.prose}>
+              <strong>Trait rarities</strong> are weights. A trait with weight 10 shows up about ten times as often
+              as one with weight 1 on the same layer. Set them per trait under Trait rarities.
+            </p>
+            <p className={styles.groupTitle}>Collection rules</p>
+            <div className={styles.rows}>
+              {RULES.map((rule) => (
+                <div key={rule.name} className={styles.row}>
+                  <p className={styles.rowName}>{rule.name}</p>
+                  <p className={styles.rowWhat}>{rule.what}</p>
+                </div>
+              ))}
+            </div>
+            <p className={styles.note} style={{ marginTop: 14 }}>
+              Collection stats and Random rolls on the same tab update as you change things, so you can see the
+              effect before you generate.
+            </p>
+          </Section>
+
+          <Section
+            id="generate"
+            title="3. Generate"
+            sub="Render the real collection. It runs in the background on your machine."
+          >
+            <ul className={styles.list}>
+              <li>Set the collection name, description and ticker. These go into every token&apos;s metadata.</li>
+              <li>Pick a target size, up to 10,000, and press Generate.</li>
+              <li>You see live progress, speed and time left, plus the last few tokens as they finish.</li>
+              <li>Cancel any time. Tokens that already finished are kept.</li>
+            </ul>
+          </Section>
+
+          <Section
+            id="review"
+            title="Fix and add tokens"
+            sub="Every finished token shows up in the collection browser on the Generate tab."
+          >
+            <div className={styles.cards}>
+              <div className={styles.card}>
+                <h3>Reroll</h3>
+                <p>Give one token a new random combination. It keeps its token number.</p>
+              </div>
+              <div className={styles.card}>
+                <h3>Swap traits</h3>
+                <p>Hand-pick the trait for each layer with a live preview, then save.</p>
+              </div>
+              <div className={styles.card}>
+                <h3>Delete</h3>
+                <p>Remove a token you don&apos;t want in the final set.</p>
+              </div>
+              <div className={styles.card}>
+                <h3>Add a 1-of-1</h3>
+                <p>
+                  Upload a finished image or compose one from your traits. 1-of-1s go at the end of the collection
+                  and survive regeneration.
+                </p>
+              </div>
+            </div>
+          </Section>
+
+          <Section id="publish" title="Publish or download" sub="Nothing leaves your browser until you press one of these.">
+            <Steps items={PUBLISH_OPTIONS} />
+            <p className={styles.prose}>
+              Token metadata lives at <code>ipfs://METADATA_CID/{'{tokenId}'}.json</code>. The launchpad reads the
+              same layout for both the NFT and DN404 lanes, so one publish works for either.
+            </p>
+          </Section>
+
+          <Section id="tips" title="Tips">
+            <ul className={styles.list}>
+              {TIPS.map((tip) => (
+                <li key={tip}>{tip}</li>
+              ))}
+            </ul>
+          </Section>
+
+          <Section id="faq" title="FAQ">
+            <div className={styles.faq}>
+              {FAQ.map((item) => (
+                <details key={item.q}>
+                  <summary>{item.q}</summary>
+                  <div>{item.a}</div>
+                </details>
+              ))}
+            </div>
+          </Section>
+        </article>
+
+        <aside className={styles.rail} aria-label="Notes">
+          <div className={styles.railCard}>
+            <b>Before you start</b>
+            <ul className={styles.list}>
+              <li>Transparent PNGs, one folder per layer</li>
+              <li>Same canvas size for every trait</li>
+              <li>About 2x more combinations than tokens</li>
+            </ul>
+          </div>
+          <div className={styles.railCard}>
+            <b>Ready to launch?</b>
+            <p>
+              After you publish, the studio hands your metadata straight to the urufu labs launchpad as an NFT
+              collection or a DN404.
+            </p>
+            <a href="https://www.urufulabs.xyz" target="_blank" rel="noopener noreferrer" className="ui-btn" data-size="sm">
+              Visit the launchpad ↗
+            </a>
+          </div>
+        </aside>
+      </div>
+    </main>
   );
 }

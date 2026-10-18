@@ -252,9 +252,9 @@ export function CollectionGenerator({
   return (
     <section className="uru-shell collection-generator">
       <div className="panel-header compact-panel-header">
-        <h2 className="uru-h2">Generate collection ✿</h2>
-        <p style={{ margin: '4px 0 0', color: 'var(--anchor-soft)', fontFamily: 'var(--font-round), Klee One, cursive', fontSize: 13 }}>
-          Runs off-thread on your machine — up to <span className="uru-num">10,000</span> tokens. Nothing leaves your browser until you push to IPFS.
+        <h2 className="uru-h2">Generate collection</h2>
+        <p style={{ margin: '4px 0 0', color: 'var(--fg-muted)', fontSize: 13 }}>
+          Runs off-thread on your machine, up to <span className="uru-num">10,000</span> tokens. Nothing leaves your browser until you push to IPFS.
         </p>
       </div>
 
@@ -333,8 +333,8 @@ export function CollectionGenerator({
           </button>
         ) : null}
         {traitCount === 0 ? (
-          <span className="uru-eyebrow" style={{ alignSelf: 'center' }}>
-            add trait layers to enable generation
+          <span className="ui-hint" style={{ alignSelf: 'center' }}>
+            Add trait layers to enable generation
           </span>
         ) : null}
       </div>
@@ -345,15 +345,15 @@ export function CollectionGenerator({
             <strong>
               <span className="uru-num">{state.done.toLocaleString()}</span> / <span className="uru-num">{state.total.toLocaleString()}</span>
             </strong>
-            <span className="uru-eyebrow">
-              rate <span className="uru-num">{state.rate.toFixed(1)}</span>/s · eta {formatEta(state.etaMs)}
+            <span className="ui-hint">
+              Rate <span className="uru-num">{state.rate.toFixed(1)}</span>/s · ETA {formatEta(state.etaMs)}
             </span>
           </div>
-          <div style={{ height: 8, background: 'var(--paper-white)', borderRadius: 999, marginTop: 8, overflow: 'hidden', border: '1px solid var(--anchor)' }}>
-            <div style={{ height: '100%', width: `${progressPct}%`, background: 'var(--pink-hot)', transition: 'width 200ms ease' }} />
+          <div style={{ height: 8, background: 'var(--surface-2)', borderRadius: 999, marginTop: 8, overflow: 'hidden', border: '1px solid var(--line)' }}>
+            <div style={{ height: '100%', width: `${progressPct}%`, background: 'var(--accent)', transition: 'width 200ms ease' }} />
           </div>
           {state.duplicatesSkipped > 0 ? (
-            <span className="uru-eyebrow" style={{ marginTop: 6, display: 'block' }}>
+            <span className="ui-hint" style={{ marginTop: 6, display: 'block' }}>
               <span className="uru-num">{state.duplicatesSkipped}</span> duplicate rolls skipped
             </span>
           ) : null}
@@ -375,17 +375,8 @@ export function CollectionGenerator({
 
       {state.error ? (
         <div
-          className="uru-shell-tight"
           role="alert"
-          style={{
-            marginTop: 12,
-            borderColor: 'var(--pink-hot)',
-            background: 'var(--pink-warm)',
-            fontFamily: 'var(--font-pixel), monospace',
-            fontSize: 12,
-            textTransform: 'uppercase',
-            letterSpacing: '0.08em',
-          }}
+          className="uru-banner" data-tone="error" style={{ marginTop: 12 }}
         >
           {state.error}
         </div>

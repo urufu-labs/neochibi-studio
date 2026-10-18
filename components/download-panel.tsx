@@ -90,8 +90,8 @@ export function DownloadPanel({ outputCount }: DownloadPanelProps) {
   return (
     <section className="uru-shell download-panel">
       <div className="panel-header compact-panel-header">
-        <h2 className="uru-h2">Download bundle ✿</h2>
-        <p style={{ margin: '4px 0 0', color: 'var(--anchor-soft)', fontFamily: 'var(--font-round), Klee One, cursive', fontSize: 13 }}>
+        <h2 className="uru-h2">Download bundle</h2>
+        <p style={{ margin: '4px 0 0', color: 'var(--fg-muted)', fontSize: 13 }}>
           Skip IPFS and grab a zip you can host anywhere. Inside: <code>images/</code>, <code>metadata/</code>, and a README explaining how to swap the image URL after upload.
         </p>
       </div>
@@ -107,8 +107,8 @@ export function DownloadPanel({ outputCount }: DownloadPanelProps) {
             placeholder={DEFAULT_PREFIX}
             disabled={state.running}
           />
-          <span className="uru-eyebrow" style={{ marginTop: 4 }}>
-            leave as placeholder if you&apos;ll rewrite later ・ or paste your final host prefix now (must end with <code>/</code>)
+          <span className="ui-hint" style={{ marginTop: 4 }}>
+            Leave the placeholder if you&apos;ll rewrite it later, or paste your final host prefix now (must end with <code>/</code>)
           </span>
         </label>
       </div>
@@ -116,7 +116,7 @@ export function DownloadPanel({ outputCount }: DownloadPanelProps) {
       <div style={{ display: 'flex', gap: 10, marginTop: 12, flexWrap: 'wrap' }}>
         <button
           type="button"
-          className="uru-btn uru-btn-primary"
+          className="uru-btn uru-btn-mint"
           disabled={!canDownload}
           onClick={() => void start()}
           title={outputCount === 0 ? 'Generate a collection first' : undefined}
@@ -129,8 +129,8 @@ export function DownloadPanel({ outputCount }: DownloadPanelProps) {
           </button>
         ) : null}
         {outputCount === 0 ? (
-          <span className="uru-eyebrow" style={{ alignSelf: 'center' }}>
-            generate a collection to enable download
+          <span className="ui-hint" style={{ alignSelf: 'center' }}>
+            Generate a collection to enable download
           </span>
         ) : null}
       </div>
@@ -138,30 +138,21 @@ export function DownloadPanel({ outputCount }: DownloadPanelProps) {
       {state.running || (state.done > 0 && !state.completedAt && !state.error) ? (
         <div className="uru-shell-tight" style={{ marginTop: 12 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-            <strong className="uru-eyebrow">phase: {state.phase ?? 'starting'}</strong>
+            <strong className="uru-eyebrow">Phase: {state.phase ?? 'starting'}</strong>
             <span>
               <span className="uru-num">{state.done.toLocaleString()}</span> / <span className="uru-num">{state.total.toLocaleString()}</span>
             </span>
           </div>
-          <div style={{ height: 8, background: 'var(--paper-white)', borderRadius: 999, marginTop: 8, overflow: 'hidden', border: '1px solid var(--anchor)' }}>
-            <div style={{ height: '100%', width: `${progressPct}%`, background: 'var(--mint-hot)', transition: 'width 200ms ease' }} />
+          <div style={{ height: 8, background: 'var(--surface-2)', borderRadius: 999, marginTop: 8, overflow: 'hidden', border: '1px solid var(--line)' }}>
+            <div style={{ height: '100%', width: `${progressPct}%`, background: 'var(--buy)', transition: 'width 200ms ease' }} />
           </div>
         </div>
       ) : null}
 
       {state.error ? (
         <div
-          className="uru-shell-tight"
           role="alert"
-          style={{
-            marginTop: 12,
-            borderColor: 'var(--pink-hot)',
-            background: 'var(--pink-warm)',
-            fontFamily: 'var(--font-pixel), monospace',
-            fontSize: 12,
-            textTransform: 'uppercase',
-            letterSpacing: '0.08em',
-          }}
+          className="uru-banner" data-tone="error" style={{ marginTop: 12 }}
         >
           {state.error}
         </div>
@@ -169,20 +160,15 @@ export function DownloadPanel({ outputCount }: DownloadPanelProps) {
 
       {state.completedAt ? (
         <div
-          className="uru-shell-tight"
-          style={{
-            marginTop: 12,
-            borderColor: 'var(--mint-hot)',
-            background: 'var(--mint-warm, var(--paper-white))',
-            display: 'grid',
-            gap: 6,
-          }}
+          className="uru-banner"
+          data-tone="success"
+          style={{ marginTop: 12, display: 'grid', gap: 4 }}
         >
-          <strong style={{ fontFamily: 'var(--font-round), Klee One, cursive' }}>
-            zip saved ✿
+          <strong>
+            Zip saved
           </strong>
-          <span className="uru-eyebrow">
-            bundled <span className="uru-num">{state.total.toLocaleString()}</span> tokens as
+          <span className="ui-hint">
+            Bundled <span className="uru-num">{state.total.toLocaleString()}</span> tokens as
             {' '}<code>{(meta.collectionName || 'collection').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'collection'}.zip</code>
           </span>
         </div>

@@ -12,17 +12,18 @@ interface StudioStepsProps {
 interface StepDef {
   id: StudioMainTab;
   n: string;
-  jp: string;
   title: string;
   hint: string;
 }
 
 const STEPS: readonly StepDef[] = [
-  { id: 'import',   n: '01', jp: '一', title: 'import',   hint: 'drop trait folders, order layers' },
-  { id: 'tune',     n: '02', jp: '二', title: 'tune',     hint: 'weights, rules, random rolls' },
-  { id: 'generate', n: '03', jp: '三', title: 'generate', hint: 'render, download, publish to IPFS' },
+  { id: 'import',   n: '1', title: 'Import',   hint: 'Drop trait folders, order layers' },
+  { id: 'tune',     n: '2', title: 'Tune',     hint: 'Weights, rules, random rolls' },
+  { id: 'generate', n: '3', title: 'Generate', hint: 'Render, download, publish to IPFS' },
 ] as const;
 
+/// Import / Tune / Generate step bar. Segmented like the launchpad's create steps:
+/// the number turns into a check once a step has what it needs.
 export function StudioSteps({ activeTab, onTabChange, hasLayers, hasOutputs }: StudioStepsProps) {
   const isDone = (id: StudioMainTab): boolean => {
     if (id === 'import') return hasLayers;
@@ -31,7 +32,7 @@ export function StudioSteps({ activeTab, onTabChange, hasLayers, hasOutputs }: S
   };
 
   return (
-    <nav aria-label="studio workflow" className="studio-tabs">
+    <nav aria-label="Studio workflow" className="studio-tabs">
       {STEPS.map((step) => {
         const active = step.id === activeTab;
         const done = !active && isDone(step.id);
@@ -44,14 +45,11 @@ export function StudioSteps({ activeTab, onTabChange, hasLayers, hasOutputs }: S
             className="studio-tab"
             aria-current={active ? 'step' : undefined}
             onClick={() => onTabChange(step.id)}
-            title={step.hint}
           >
-            <span aria-hidden className="studio-tab-jp">{step.jp}</span>
+            <span aria-hidden className="studio-tab-num">{done ? '✓' : step.n}</span>
             <span className="studio-tab-body">
-              <span className="uru-eyebrow studio-tab-eyebrow">
-                step <span className="uru-num">{step.n}</span>{done ? ' ✓' : ''}
-              </span>
               <strong className="studio-tab-title">{step.title}</strong>
+              <span className="studio-tab-eyebrow">{step.hint}</span>
             </span>
           </button>
         );

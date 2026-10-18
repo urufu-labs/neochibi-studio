@@ -26,6 +26,8 @@ interface PreviewCanvasProps {
   exportName: string;
   onExportNameChange: (name: string) => void;
   buildAssetUrl: (rootDir: string, asset: TraitAsset) => string;
+  /// Rolls a new random trait per layer for this preview (respects weights).
+  onShuffle?: () => void;
 }
 
 interface ToolbarState {
@@ -60,6 +62,7 @@ export function PreviewCanvas({
   exportName,
   onExportNameChange,
   buildAssetUrl,
+  onShuffle,
 }: PreviewCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const backgroundCanvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -76,15 +79,24 @@ export function PreviewCanvas({
 
   const pixelated = hasPixelatedEffect(effects);
 
+  // The asset store hands out blob URLs lazily: the first ask for a trait returns ''
+  // and the parent re-renders once the URL is ready. Keying on the resolved URLs
+  // (not just trait ids) makes the composite re-run at that point, so switching to a
+  // trait that hasn't been viewed yet still updates the preview.
+  const resolvedUrls = library ? previewLayers.map(({ trait }) => buildAssetUrl(library.rootDir, trait)) : [];
+  const urlsPending = resolvedUrls.some((url) => !url);
   const compositeKey = useMemo(
     () =>
       previewLayers
-        .map(({ layer, trait }) => `${layer.id}:${trait.id}@${trait.version ?? 0}`)
+        .map(({ layer, trait }, i) => `${layer.id}:${trait.id}@${trait.version ?? 0}=${resolvedUrls[i] ?? ''}`)
         .join('|'),
-    [previewLayers],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [previewLayers, resolvedUrls.join('|')],
   );
 
   useEffect(() => {
+    // Keep showing the last composite until every trait image URL has resolved.
+    if (urlsPending) return;
     compositeTokenRef.current += 1;
     const token = compositeTokenRef.current;
     const layers = previewLayersRef.current;
@@ -134,7 +146,7 @@ export function PreviewCanvas({
         setRenderError(err instanceof Error ? err.message : 'Failed to render preview.');
       }
     })();
-  }, [library, compositeKey]);
+  }, [library, compositeKey, urlsPending]);
 
   useEffect(() => {
     if (renderRafRef.current !== null) cancelAnimationFrame(renderRafRef.current);
@@ -240,13 +252,20 @@ export function PreviewCanvas({
       <div className="panel-header panel-header-preview panel-header-tight">
         <div>
           <h2 className="uru-h2" style={{ margin: 0 }}>Single-token preview</h2>
-          <p style={{ margin: '2px 0 0', color: 'var(--anchor-soft)', fontFamily: 'var(--font-round), Klee One, cursive', fontSize: 12 }}>
-            Design-time canvas — shuffle to check layer order &amp; effects. Not part of the final collection.
+          <p style={{ margin: '2px 0 0', color: 'var(--fg-muted)', fontSize: 13 }}>
+            A scratch canvas to check layer order and effects. Not part of the final collection.
           </p>
         </div>
-        <div className="uru-stamp uru-stamp-cream preview-stat-chip">
-          {previewLayers.length > 0 ? <><span className="uru-num">{previewLayers.length}</span> live layers</> : 'Stage empty'}
-          {activeCount > 0 ? <> · <span className="uru-num">{activeCount}</span> fx</> : ''}
+        <div className="preview-header-actions">
+          <span className="preset-meta preview-stat-chip">
+            {previewLayers.length > 0 ? <><span className="uru-num">{previewLayers.length}</span> layers</> : 'Nothing staged'}
+            {activeCount > 0 ? <> · <span className="uru-num">{activeCount}</span> effects</> : ''}
+          </span>
+          {onShuffle ? (
+            <button className="uru-btn uru-btn-primary" type="button" onClick={onShuffle} disabled={!library} title="Pick a random trait for every layer (respects rarity weights)">
+              Shuffle
+            </button>
+          ) : null}
         </div>
       </div>
 
@@ -277,7 +296,7 @@ export function PreviewCanvas({
           <button className="uru-btn" onClick={() => void copyPreview()} type="button" disabled={toolbar.loading || previewLayers.length === 0}>
             Copy preview
           </button>
-          <button className="uru-btn uru-btn-primary" onClick={() => void exportPreview()} type="button" disabled={toolbar.loading || previewLayers.length === 0}>
+          <button className="uru-btn" onClick={() => void exportPreview()} type="button" disabled={toolbar.loading || previewLayers.length === 0}>
             Export PNG
           </button>
         </div>
@@ -286,11 +305,11 @@ export function PreviewCanvas({
       <details className="effect-chip-stack effect-chip-stack-details">
         <summary className="effect-chip-head">
           <span className="effect-chip-summary-label">
-            <span className="uru-eyebrow">effects ✿</span>
+            <span className="uru-h2" style={{ fontSize: 14 }}>Effects</span>
             <span className="uru-num effect-chip-count-inline">{activeCount}</span>
-            <span className="uru-eyebrow">/{effects.length} on</span>
+            <span className="preset-meta">/ {effects.length} on</span>
           </span>
-          <span className="uru-eyebrow effect-chip-summary-hint">click to open</span>
+          <span className="effect-chip-summary-hint">Show</span>
         </summary>
         <div className="effect-chip-head effect-chip-head-inline">
           <div className="effect-chip-head-actions">
@@ -300,7 +319,7 @@ export function PreviewCanvas({
             </button>
           </div>
         </div>
-        <p className="effect-chip-hint">Toggle and reorder — effects apply to the live canvas in list order, and bake into Copy/Export PNG.</p>
+        <p className="effect-chip-hint">Toggle and reorder. Effects apply to the live canvas in list order and are baked into Copy and Export PNG.</p>
         <div className="effect-preset-row">
           <span className="effect-preset-label">Preset</span>
           <div className="effect-preset-chips">
@@ -381,48 +400,24 @@ export function PreviewCanvas({
 
       {renderError ? (
         <div
-          className="uru-shell-tight error-banner"
+          className="uru-banner error-banner" data-tone="error"
           role="alert"
-          style={{
-            borderColor: 'var(--pink-hot)',
-            background: 'var(--pink-warm)',
-            fontFamily: 'var(--font-pixel), monospace',
-            fontSize: 12,
-            textTransform: 'uppercase',
-            letterSpacing: '0.08em',
-          }}
         >
           {renderError}
         </div>
       ) : null}
       {toolbar.error ? (
         <div
-          className="uru-shell-tight error-banner"
+          className="uru-banner error-banner" data-tone="error"
           role="alert"
-          style={{
-            borderColor: 'var(--pink-hot)',
-            background: 'var(--pink-warm)',
-            fontFamily: 'var(--font-pixel), monospace',
-            fontSize: 12,
-            textTransform: 'uppercase',
-            letterSpacing: '0.08em',
-          }}
         >
           {toolbar.error}
         </div>
       ) : null}
       {toolbar.success ? (
         <div
-          className="uru-shell-tight success-banner"
+          className="uru-banner success-banner" data-tone="success"
           role="status"
-          style={{
-            borderColor: 'var(--mint-hot)',
-            background: 'var(--mint)',
-            fontFamily: 'var(--font-pixel), monospace',
-            fontSize: 12,
-            textTransform: 'uppercase',
-            letterSpacing: '0.08em',
-          }}
         >
           {toolbar.success}
         </div>

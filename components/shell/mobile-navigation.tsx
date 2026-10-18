@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
@@ -9,15 +10,16 @@ import { AudioToggle } from './audio-toggle';
 import styles from './mobile-navigation.module.css';
 
 const primaryLinks = [
-  { href: '/studio', label: '✿ studio', primary: true },
-  { href: '/how-to', label: '❁ how-to', primary: false },
+  { href: '/studio', label: 'Open the studio', primary: true },
+  { href: '/how-to', label: 'How it works', primary: false },
 ];
 
 const utilityLinks: Array<{ href: string; label: string }> = [];
 
 const communityLinks: Array<{ href: string; label: string }> = [
-  { href: 'https://github.com/urufu-labs/neochibi-studio', label: '✧ github ↗' },
-  { href: 'https://www.urufulabs.xyz', label: '❋ urufu labs ↗' },
+  { href: 'https://www.urufulabs.xyz', label: 'urufu labs launchpad ↗' },
+  { href: 'https://github.com/urufu-labs/neochibi-studio', label: 'Source on GitHub ↗' },
+  { href: 'https://www.urufu.xyz', label: 'urufu gemu ↗' },
 ];
 
 export function MobileNavigation() {
@@ -105,10 +107,10 @@ export function MobileNavigation() {
           <i />
           <i />
         </span>
-        <span className={styles.menuLabel}>menu</span>
+        <span className={styles.menuLabel}>Menu</span>
       </button>
 
-      {isOpen && (
+      {isOpen && createPortal(
         <div className={styles.drawerLayer}>
           <button
             type="button"
@@ -127,10 +129,10 @@ export function MobileNavigation() {
             <header className={styles.drawerHeader}>
               <div>
                 <span className={styles.kicker}>urufulabs studio</span>
-                <h2 id="mobile-navigation-title">navigation</h2>
+                <h2 id="mobile-navigation-title">Menu</h2>
               </div>
               <button type="button" className={styles.closeButton} onClick={() => closeMenu()}>
-                close <span aria-hidden="true">×</span>
+                Close <span aria-hidden="true">×</span>
               </button>
             </header>
 
@@ -150,7 +152,7 @@ export function MobileNavigation() {
             </nav>
 
             <section className={styles.controlSection} aria-labelledby="mobile-preferences-title">
-              <h3 id="mobile-preferences-title">preferences</h3>
+              <h3 id="mobile-preferences-title">Preferences</h3>
               <div className={styles.preferences}>
                 <ThemeToggle />
                 <AudioToggle />
@@ -159,7 +161,7 @@ export function MobileNavigation() {
 
             {utilityLinks.length > 0 && (
               <section className={styles.linkSection} aria-labelledby="mobile-tools-title">
-                <h3 id="mobile-tools-title">tools</h3>
+                <h3 id="mobile-tools-title">Tools</h3>
                 <nav aria-label="Mobile utility navigation">
                   {utilityLinks.map((link) => (
                     <Link
@@ -178,7 +180,7 @@ export function MobileNavigation() {
 
             {communityLinks.length > 0 && (
               <section className={styles.linkSection} aria-labelledby="mobile-community-title">
-                <h3 id="mobile-community-title">elsewhere</h3>
+                <h3 id="mobile-community-title">Elsewhere</h3>
                 <nav aria-label="Community links">
                   {communityLinks.map((link) => (
                     <a key={link.href} href={link.href} target="_blank" rel="noopener noreferrer">
@@ -189,7 +191,8 @@ export function MobileNavigation() {
               </section>
             )}
           </aside>
-        </div>
+        </div>,
+        document.body,
       )}
     </div>
   );

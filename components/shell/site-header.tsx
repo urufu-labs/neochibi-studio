@@ -1,63 +1,63 @@
+'use client';
+
+import Image from 'next/image';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 
-import { ThemeToggle } from './theme-toggle';
-import { AudioToggle } from './audio-toggle';
 import { MobileNavigation } from './mobile-navigation';
+import { SettingsMenu } from './settings-menu';
+import { IconExternal, IconGithub } from './icons';
+import styles from './shell.module.css';
 
-/// Cream-bar header shared across every route. Brand mark `ウ` on a pink-hot
-/// circle, name in a display serif, primary nav row (hidden below lg), theme
-/// toggle, and a mobile drawer trigger. Structure mirrors urufu-launchpad so
-/// the two products read as one family.
+const NAV = [
+  { href: '/studio', label: 'Studio' },
+  { href: '/how-to', label: 'How it works' },
+];
+
+export function isActivePath(pathname: string, href: string): boolean {
+  return href === '/' ? pathname === '/' : pathname === href || pathname.startsWith(href + '/');
+}
+
+/// Sticky site header. Same shell as the urufu labs launchpad (logo, primary links,
+/// right-hand cluster) so the studio reads as part of the same product. Below 1020px
+/// the links move into the menu sheet.
 export function SiteHeader() {
+  const pathname = usePathname();
   return (
-    <header
-      className="px-3 sm:px-4 py-2 flex items-center justify-between gap-2"
-      style={{ borderBottom: '1.5px solid var(--anchor)', background: 'var(--cream)', color: 'var(--anchor)' }}
-    >
-      <Link href="/" className="flex items-center gap-2 shrink-0" aria-label="urufulabs studio home">
-        <span
-          aria-hidden
-          className="inline-flex h-10 w-10 items-center justify-center rounded-full text-base"
-          style={{
-            background: 'var(--pink-hot)',
-            color: '#fff',
-            border: '1.5px solid var(--anchor)',
-            boxShadow: '2px 2px 0 var(--anchor)',
-            fontFamily: 'var(--font-jp), "DotGothic16", monospace',
-          }}
-        >
-          ウ
+    <header className={styles.header}>
+      <Link href="/studio" className={styles.brand} aria-label="urufulabs studio home">
+        <Image src="/brand/logo-64.png" alt="" aria-hidden width={32} height={32} priority className={styles.brandLogo} />
+        <span className={styles.brandName}>
+          urufu<b>labs</b>
         </span>
-        <span
-          className="uru-h1 hidden min-[360px]:inline"
-          style={{ fontSize: 'clamp(16px, 4vw, 22px)' }}
-        >
-          urufulabs<span style={{ color: 'var(--pink-hot)' }}>studio</span>
-          <sup style={{ fontFamily: 'var(--font-pixel), monospace', fontSize: '10px', marginLeft: 2 }}>®</sup>
-        </span>
+        <span className={styles.brandTag}>studio</span>
       </Link>
 
-      <nav
-        className="hidden lg:flex items-center gap-3 text-[13px] justify-end"
-        style={{ fontFamily: 'var(--font-round), Klee One, cursive' }}
-        aria-label="primary navigation"
-      >
-        <Link href="/studio" className="hover:underline" style={{ color: 'var(--anchor)' }}>✿ studio</Link>
-        <Link href="/how-to" className="hover:underline" style={{ color: 'var(--anchor)' }}>❁ how-to</Link>
-        <a
-          href="https://www.urufulabs.xyz"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="hover:underline"
-          style={{ color: 'var(--pink-hot)' }}
-        >
-          ❋ urufu labs ↗
-        </a>
-        <ThemeToggle />
-        <AudioToggle />
+      <nav className={styles.nav} aria-label="Primary">
+        {NAV.map((item) => (
+          <Link key={item.href} href={item.href} className={styles.navLink} aria-current={isActivePath(pathname, item.href) ? 'page' : undefined}>
+            {item.label}
+          </Link>
+        ))}
       </nav>
 
-      <div className="flex lg:hidden items-center gap-2 shrink-0">
+      <div className={styles.right}>
+        <a href="https://www.urufulabs.xyz" target="_blank" rel="noopener noreferrer" className={`${styles.pill} ${styles.hideSm}`}>
+          Launchpad <IconExternal />
+        </a>
+        <a
+          href="https://github.com/urufu-labs/neochibi-studio"
+          target="_blank"
+          rel="noopener noreferrer"
+          className={`${styles.pill} ${styles.iconPill} ${styles.hideSm}`}
+          aria-label="Source on GitHub"
+          title="Source on GitHub"
+        >
+          <IconGithub />
+        </a>
+        <span className={styles.hideSm}>
+          <SettingsMenu />
+        </span>
         <MobileNavigation />
       </div>
     </header>

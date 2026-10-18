@@ -2,13 +2,18 @@
 // the root layout head so React does not warn on raw <script> tags rendered inside
 // components. Keep the STORAGE_KEY in sync with components/shell/theme-toggle.tsx.
 //
-// Light is the brand default — the paper/cream/pink palette is what the site is designed
-// around. Only opt into dark if the user has explicitly toggled it (prefers-color-scheme
-// is ignored so a dark-mode OS doesn't override the intended look for first-time visitors).
+// Light is the default theme (same as the urufu labs launchpad); dark is a full theme
+// behind the toggle. prefers-color-scheme is ignored so a dark-mode OS doesn't override
+// the intended look for first-time visitors.
+//
+// `?theme=dark` / `?theme=light` forces a theme for that page load without saving it,
+// so screenshot checks can capture both themes.
 (function () {
   try {
+    var forced = new URLSearchParams(location.search).get('theme');
     var stored = localStorage.getItem('neochibi-theme');
-    var theme = stored === 'dark' ? 'dark' : 'light';
+    var pick = forced === 'dark' || forced === 'light' ? forced : stored;
+    var theme = pick === 'dark' ? 'dark' : 'light';
     document.documentElement.setAttribute('data-theme', theme);
   } catch (_err) {
     document.documentElement.setAttribute('data-theme', 'light');

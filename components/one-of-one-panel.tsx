@@ -118,7 +118,7 @@ export function OneOfOnePanel({ library, onClose }: OneOfOnePanelProps) {
       style={{
         position: 'fixed',
         inset: 0,
-        background: 'rgba(58,44,58,0.65)',
+        background: 'var(--overlay)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
@@ -131,16 +131,11 @@ export function OneOfOnePanel({ library, onClose }: OneOfOnePanelProps) {
         style={{ maxWidth: 760, width: '100%', maxHeight: '92vh', overflowY: 'auto', position: 'relative' }}
         onClick={(event) => event.stopPropagation()}
       >
-        <span
-          className="uru-tape uru-tape-pink"
-          aria-hidden
-          style={{ position: 'absolute', top: -8, right: 30, transform: 'rotate(5deg)' }}
-        />
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 12 }}>
-          <h3 className="uru-h2" style={{ margin: 0 }}>Add a 1-of-1 token ✿</h3>
+          <h3 className="uru-h2" style={{ margin: 0 }}>Add a 1-of-1 token</h3>
           <span className="uru-stamp uru-stamp-pink">1 of 1</span>
         </div>
-        <p style={{ margin: '6px 0 0', color: 'var(--anchor-soft)', fontFamily: 'var(--font-round), Klee One, cursive', fontSize: 13 }}>
+        <p style={{ margin: '6px 0 0', color: 'var(--fg-muted)', fontSize: 13 }}>
           These bonus tokens append to the end of your collection and survive regeneration.
         </p>
 
@@ -174,8 +169,8 @@ export function OneOfOnePanel({ library, onClose }: OneOfOnePanelProps) {
           <div
             style={{
               aspectRatio: '1 / 1',
-              background: 'var(--paper-white)',
-              border: '1.5px solid var(--anchor)',
+              background: 'var(--surface-2)',
+              border: '1px solid var(--line)',
               borderRadius: 10,
               overflow: 'hidden',
             }}
@@ -184,7 +179,7 @@ export function OneOfOnePanel({ library, onClose }: OneOfOnePanelProps) {
               // eslint-disable-next-line @next/next/no-img-element
               <img src={previewUrl} alt="1-of-1 preview" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
             ) : (
-              <div style={{ display: 'grid', placeItems: 'center', height: '100%', color: 'var(--anchor-soft)' }}>
+              <div style={{ display: 'grid', placeItems: 'center', height: '100%', color: 'var(--fg-muted)' }}>
                 <span className="uru-eyebrow">
                   {mode === 'upload' ? 'pick a png' : 'choose traits'}
                 </span>
@@ -228,7 +223,7 @@ export function OneOfOnePanel({ library, onClose }: OneOfOnePanelProps) {
                       })
                     }
                   >
-                    <option value="">— none —</option>
+                    <option value="">None</option>
                     {layer.traits.map((trait) => (
                       <option key={trait.id} value={trait.id}>{trait.name}</option>
                     ))}
@@ -263,7 +258,7 @@ export function OneOfOnePanel({ library, onClose }: OneOfOnePanelProps) {
 
           <div>
             <div style={{ display: 'flex', gap: 8, alignItems: 'baseline', marginBottom: 4 }}>
-              <span className="uru-eyebrow">custom attributes</span>
+              <span className="uru-eyebrow">Custom attributes</span>
               <button
                 type="button"
                 className="uru-chip"
@@ -309,8 +304,7 @@ export function OneOfOnePanel({ library, onClose }: OneOfOnePanelProps) {
         {error ? (
           <div
             role="alert"
-            className="uru-shell-tight"
-            style={{ marginTop: 12, borderColor: 'var(--pink-hot)', background: 'var(--pink-warm)', fontFamily: 'var(--font-pixel), monospace', fontSize: 12, textTransform: 'uppercase' }}
+            className="uru-banner" data-tone="error" style={{ marginTop: 12 }}
           >
             {error}
           </div>

@@ -113,15 +113,15 @@ export function IpfsPushPanel({ outputCount }: IpfsPushPanelProps) {
   return (
     <section className="uru-shell ipfs-push-panel">
       <div className="panel-header compact-panel-header">
-        <h2 className="uru-h2">Publish to IPFS ✿</h2>
-        <p style={{ margin: '4px 0 0', color: 'var(--anchor-soft)', fontFamily: 'var(--font-round), Klee One, cursive', fontSize: 13 }}>
-          Publishes images then metadata as two IPFS directories. Returns one metadata CID your launchpad uses as <code>baseURI</code> — the image folder CID is available too if you want to browse the raw pngs.
+        <h2 className="uru-h2">Publish to IPFS</h2>
+        <p style={{ margin: '4px 0 0', color: 'var(--fg-muted)', fontSize: 13 }}>
+          Publishes images then metadata as two IPFS directories. Returns one metadata CID your launchpad uses as <code>baseURI</code>. The image folder CID is there too if you want to browse the raw PNGs.
         </p>
       </div>
 
       {noJwt ? (
         <div className="uru-bubble" style={{ marginTop: 10 }}>
-          IPFS uploads are temporarily unavailable. Try again later ✿
+          IPFS uploads are temporarily unavailable. Try again later.
         </div>
       ) : null}
 
@@ -131,30 +131,30 @@ export function IpfsPushPanel({ outputCount }: IpfsPushPanelProps) {
           role="status"
           style={{
             marginTop: 10,
-            borderColor: 'var(--pink-hot)',
-            background: 'var(--pink-warm)',
+            borderColor: 'var(--accent)',
+            background: 'var(--accent-soft)',
             display: 'grid',
             gap: 6,
             padding: '10px 12px',
           }}
         >
-          <strong className="uru-eyebrow" style={{ color: 'var(--pink-hot)' }}>
-            heads up ✿ proxy mode
+          <strong style={{ fontSize: 13.5 }}>
+            Heads up: proxy mode
           </strong>
-          <p style={{ margin: 0, fontFamily: 'var(--font-round), Klee One, cursive', fontSize: 13, lineHeight: 1.45 }}>
-            Uploads will route through this server, which is capped at ~100 MB per request — full-size collections will hit <span className="uru-num">FUNCTION_PAYLOAD_TOO_LARGE</span>. To enable browser-direct uploads with no cap, the server’s <span className="uru-num">PINATA_JWT</span> needs the Admin scope, and the Pinata account plan must allow programmatic scoped-key creation.
+          <p style={{ margin: 0, fontSize: 13, lineHeight: 1.45 }}>
+            Uploads will route through this server, which is capped at about 100 MB per request, so full-size collections will hit <span className="uru-num">FUNCTION_PAYLOAD_TOO_LARGE</span>. To enable browser-direct uploads with no cap, the server’s <span className="uru-num">PINATA_JWT</span> needs the Admin scope, and the Pinata account plan must allow programmatic scoped-key creation.
           </p>
           {state.sessionNote ? (
             <p
               style={{
                 margin: 0,
-                fontFamily: 'var(--font-pixel), monospace',
+                fontFamily: 'var(--font-sans)',
                 fontSize: 11,
-                color: 'var(--anchor-soft)',
+                color: 'var(--fg-muted)',
                 wordBreak: 'break-word',
               }}
             >
-              pinata said: {state.sessionNote}
+              Pinata said: {state.sessionNote}
             </p>
           ) : null}
         </div>
@@ -162,17 +162,17 @@ export function IpfsPushPanel({ outputCount }: IpfsPushPanelProps) {
 
       {meta.collectionName || meta.description ? (
         <div className="uru-shell-tight" style={{ marginTop: 12, display: 'grid', gap: 6 }}>
-          <span className="uru-eyebrow">publishing as</span>
-          <strong style={{ fontFamily: 'var(--font-round), Klee One, cursive', fontSize: 15 }}>
+          <span className="uru-eyebrow">Publishing as</span>
+          <strong style={{ fontSize: 15 }}>
             {meta.collectionName || 'Untitled Collection'}
           </strong>
           {meta.description ? (
-            <p style={{ margin: 0, color: 'var(--anchor-soft)', fontSize: 13, lineHeight: 1.5 }}>
+            <p style={{ margin: 0, color: 'var(--fg-muted)', fontSize: 13, lineHeight: 1.5 }}>
               {meta.description}
             </p>
           ) : null}
-          <span className="uru-eyebrow" style={{ marginTop: 2 }}>
-            edit above in ✿ generate collection
+          <span className="ui-hint" style={{ marginTop: 2 }}>
+            Edit this in Generate collection
           </span>
         </div>
       ) : null}
@@ -193,8 +193,8 @@ export function IpfsPushPanel({ outputCount }: IpfsPushPanelProps) {
           </button>
         ) : null}
         {outputCount === 0 ? (
-          <span className="uru-eyebrow" style={{ alignSelf: 'center' }}>
-            generate a collection to enable pinning
+          <span className="ui-hint" style={{ alignSelf: 'center' }}>
+            Generate a collection to enable publishing
           </span>
         ) : null}
       </div>
@@ -202,30 +202,21 @@ export function IpfsPushPanel({ outputCount }: IpfsPushPanelProps) {
       {state.running || (state.done > 0 && !state.result) ? (
         <div className="uru-shell-tight" style={{ marginTop: 12 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-            <strong className="uru-eyebrow">phase: {state.phase ?? 'starting'}</strong>
+            <strong className="uru-eyebrow">Phase: {state.phase ?? 'starting'}</strong>
             <span>
               <span className="uru-num">{state.done.toLocaleString()}</span> / <span className="uru-num">{state.total.toLocaleString()}</span>
             </span>
           </div>
-          <div style={{ height: 8, background: 'var(--paper-white)', borderRadius: 999, marginTop: 8, overflow: 'hidden', border: '1px solid var(--anchor)' }}>
-            <div style={{ height: '100%', width: state.total > 0 ? `${Math.min(100, (state.done / state.total) * 100)}%` : '0%', background: 'var(--mint-hot)' }} />
+          <div style={{ height: 8, background: 'var(--surface-2)', borderRadius: 999, marginTop: 8, overflow: 'hidden', border: '1px solid var(--line)' }}>
+            <div style={{ height: '100%', width: state.total > 0 ? `${Math.min(100, (state.done / state.total) * 100)}%` : '0%', background: 'var(--buy)' }} />
           </div>
         </div>
       ) : null}
 
       {state.error ? (
         <div
-          className="uru-shell-tight"
           role="alert"
-          style={{
-            marginTop: 12,
-            borderColor: 'var(--pink-hot)',
-            background: 'var(--pink-warm)',
-            fontFamily: 'var(--font-pixel), monospace',
-            fontSize: 12,
-            textTransform: 'uppercase',
-            letterSpacing: '0.08em',
-          }}
+          className="uru-banner" data-tone="error" style={{ marginTop: 12 }}
         >
           {state.error}
         </div>
@@ -237,15 +228,15 @@ export function IpfsPushPanel({ outputCount }: IpfsPushPanelProps) {
           <div
             className="uru-shell-tight ipfs-hero-cid"
             style={{
-              borderColor: 'var(--pink-hot)',
-              background: 'var(--pink-warm)',
+              borderColor: 'var(--accent)',
+              background: 'var(--accent-soft)',
               padding: '14px 16px',
               display: 'grid',
               gap: 10,
             }}
           >
             <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', gap: 8, alignItems: 'baseline' }}>
-              <h3 className="uru-h2" style={{ margin: 0 }}>your collection metadata CID ✿</h3>
+              <h3 className="uru-h2" style={{ margin: 0 }}>Your collection metadata CID</h3>
               <span className="uru-num" title={state.result.metadataCid} style={{ fontSize: 15 }}>
                 {short(state.result.metadataCid)}
               </span>
@@ -256,14 +247,14 @@ export function IpfsPushPanel({ outputCount }: IpfsPushPanelProps) {
                 className="uru-btn uru-btn-primary"
                 onClick={() => navigator.clipboard?.writeText(state.result!.metadataCid).catch(() => undefined)}
               >
-                copy CID
+                Copy CID
               </button>
               <button
                 type="button"
                 className="uru-btn uru-btn-cream"
                 onClick={() => navigator.clipboard?.writeText(`ipfs://${state.result!.metadataCid}/`).catch(() => undefined)}
               >
-                copy ipfs://
+                Copy ipfs://
               </button>
               <a
                 className="uru-btn"
@@ -271,7 +262,7 @@ export function IpfsPushPanel({ outputCount }: IpfsPushPanelProps) {
                 target="_blank"
                 rel="noopener noreferrer"
               >
-                open on gateway ↗
+                Open on gateway ↗
               </a>
               {(() => {
                 // Both launchpad lanes read the same baseURI + tokenId + ".json"
@@ -308,23 +299,23 @@ export function IpfsPushPanel({ outputCount }: IpfsPushPanelProps) {
                       target="_blank"
                       rel="noopener noreferrer"
                     >
-                      ✿ launch as nft ↗
+                      Launch as NFT ↗
                     </a>
                     <a
                       className="uru-btn uru-btn-mint"
                       href={dn404Href}
                       target="_blank"
                       rel="noopener noreferrer"
-                      title="token + nft in one. hold whole units of the token to hold the art."
+                      title="Token and NFT in one. Hold whole units of the token to hold the art."
                     >
-                      ✧ launch as dn404 ↗
+                      Launch as DN404 ↗
                     </a>
                   </>
                 );
               })()}
             </div>
-            <span className="uru-eyebrow" style={{ color: 'var(--anchor)' }}>
-              hit ✿ nft or ✧ dn404 to jump into urufulabs with everything prefilled ・ metadata lives at{' '}
+            <span style={{ fontSize: 12.5, color: 'var(--fg-muted)' }}>
+              Either button opens urufu labs with everything prefilled. Metadata lives at{' '}
               <span className="uru-num">ipfs://{short(state.result.metadataCid)}/{`{tokenId}`}.json</span>
             </span>
           </div>
@@ -334,17 +325,17 @@ export function IpfsPushPanel({ outputCount }: IpfsPushPanelProps) {
             <summary
               style={{
                 cursor: 'pointer',
-                fontFamily: 'var(--font-round), Klee One, cursive',
+                fontFamily: 'var(--font-sans)',
                 fontSize: 14,
-                color: 'var(--anchor)',
+                color: 'var(--fg)',
               }}
             >
-              <span className="uru-eyebrow" style={{ marginRight: 6 }}>advanced</span>
-              view raw image folder CID
+              <span className="uru-eyebrow" style={{ marginRight: 6 }}>Advanced</span>
+              View raw image folder CID
             </summary>
             <div style={{ marginTop: 10, display: 'grid', gap: 8 }}>
               <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', gap: 8, alignItems: 'baseline' }}>
-                <strong className="uru-eyebrow">image folder</strong>
+                <strong className="uru-eyebrow">Image folder</strong>
                 <span className="uru-num" title={state.result.imageCid}>{short(state.result.imageCid)}</span>
               </div>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
@@ -353,14 +344,14 @@ export function IpfsPushPanel({ outputCount }: IpfsPushPanelProps) {
                   className="uru-btn uru-btn-cream"
                   onClick={() => navigator.clipboard?.writeText(state.result!.imageCid).catch(() => undefined)}
                 >
-                  copy CID
+                  Copy CID
                 </button>
                 <button
                   type="button"
                   className="uru-btn uru-btn-cream"
                   onClick={() => navigator.clipboard?.writeText(`ipfs://${state.result!.imageCid}/`).catch(() => undefined)}
                 >
-                  copy ipfs://
+                  Copy ipfs://
                 </button>
                 <a
                   className="uru-btn"
@@ -368,17 +359,17 @@ export function IpfsPushPanel({ outputCount }: IpfsPushPanelProps) {
                   target="_blank"
                   rel="noopener noreferrer"
                 >
-                  browse images ↗
+                  Browse images ↗
                 </a>
               </div>
-              <span className="uru-eyebrow" style={{ color: 'var(--anchor-soft)' }}>
-                this is where the raw pngs live — each metadata json references it.
+              <span className="ui-hint">
+                This is where the raw PNGs live. Each metadata JSON references it.
               </span>
             </div>
           </details>
 
-          <p className="uru-eyebrow" style={{ margin: 0 }}>
-            pinned <span className="uru-num">{state.result.totalTokens.toLocaleString()}</span> tokens ✿
+          <p className="ui-hint" style={{ margin: 0 }}>
+            Pinned <span className="uru-num">{state.result.totalTokens.toLocaleString()}</span> tokens
           </p>
         </div>
       ) : null}

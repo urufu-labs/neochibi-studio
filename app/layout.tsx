@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from 'next';
-import { Yusei_Magic, Klee_One, Pixelify_Sans, DotGothic16, JetBrains_Mono } from 'next/font/google';
+import { Hanken_Grotesk, Instrument_Serif, JetBrains_Mono } from 'next/font/google';
 import Script from 'next/script';
 import type { ReactNode } from 'react';
 
@@ -10,43 +10,35 @@ import { AudioBindings } from '@/components/shell/audio-bindings';
 import { SiteHeader } from '@/components/shell/site-header';
 import { SiteFooter } from '@/components/shell/site-footer';
 
-const yusei = Yusei_Magic({
-  variable: '--font-display',
-  weight: '400',
+// Same type system as the urufu labs launchpad: one UI sans, one display serif
+// for big headlines only, one mono for numbers. Font roles live in styles/tokens.css.
+const sans = Hanken_Grotesk({
+  variable: '--font-hanken',
+  weight: ['400', '500', '600', '700', '800'],
   subsets: ['latin', 'latin-ext'],
 });
 
-const klee = Klee_One({
-  variable: '--font-round',
-  weight: ['400', '600'],
-  subsets: ['latin'],
-});
-
-const pixel = Pixelify_Sans({
-  variable: '--font-pixel',
-  weight: ['400', '500', '600', '700'],
-  subsets: ['latin'],
-});
-
-const dot = DotGothic16({
-  variable: '--font-jp',
+const display = Instrument_Serif({
+  variable: '--font-instrument',
   weight: '400',
-  subsets: ['latin'],
+  style: ['normal', 'italic'],
+  subsets: ['latin', 'latin-ext'],
 });
 
 const mono = JetBrains_Mono({
-  variable: '--font-mono',
+  variable: '--font-jetbrains',
   weight: ['400', '500', '600'],
   subsets: ['latin'],
 });
 
+// themeColor matches --bg in styles/tokens.css so the mobile address bar tints with the page.
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
   viewportFit: 'cover',
   themeColor: [
-    { media: '(prefers-color-scheme: light)', color: '#f5ecda' },
-    { media: '(prefers-color-scheme: dark)', color: '#1c1a24' },
+    { media: '(prefers-color-scheme: light)', color: '#F3F3F0' },
+    { media: '(prefers-color-scheme: dark)', color: '#0B0B0C' },
   ],
 };
 
@@ -59,7 +51,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html
       lang="en"
-      className={`${yusei.variable} ${klee.variable} ${pixel.variable} ${dot.variable} ${mono.variable} h-full`}
+      className={`${sans.variable} ${display.variable} ${mono.variable} h-full`}
       suppressHydrationWarning
     >
       <head>

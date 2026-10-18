@@ -3,6 +3,7 @@
 import { useCallback, useRef, useState } from 'react';
 
 import { getAssetStore, useAssetStoreVersion } from '@/lib/storage/asset-store';
+import { IconUpload } from '@/components/shell/icons';
 
 interface UploadDropzoneProps {
   onImport?: (summary: { layerCount: number; traitCount: number }) => void;
@@ -209,13 +210,15 @@ export function UploadDropzone({ onImport }: UploadDropzoneProps) {
         }}
         data-drag-over={dragOver ? 'true' : undefined}
       >
-        <span className="upload-dropzone-icon" aria-hidden>✿</span>
+        <span className="upload-dropzone-icon" aria-hidden>
+          <IconUpload />
+        </span>
         <span className="upload-dropzone-label">
           {busy
             ? 'Importing…'
             : dragOver
-              ? 'drop to import ✿'
-              : 'drop a folder of trait folders, or click to pick files'}
+              ? 'Drop to import'
+              : 'Drop a folder of trait folders, or click to pick files'}
         </span>
         <button
           type="button"
@@ -226,7 +229,7 @@ export function UploadDropzone({ onImport }: UploadDropzoneProps) {
             fileInputRef.current?.click();
           }}
         >
-          + add
+          + Add traits
         </button>
       </div>
       <input
@@ -242,34 +245,16 @@ export function UploadDropzone({ onImport }: UploadDropzoneProps) {
       />
       {error ? (
         <div
-          className="uru-shell-tight"
           role="alert"
-          style={{
-            marginTop: 10,
-            borderColor: 'var(--pink-hot)',
-            background: 'var(--pink-warm)',
-            fontFamily: 'var(--font-pixel), monospace',
-            fontSize: 12,
-            textTransform: 'uppercase',
-            letterSpacing: '0.08em',
-          }}
+          className="uru-banner" data-tone="error" style={{ marginTop: 10 }}
         >
           {error}
         </div>
       ) : null}
       {success ? (
         <div
-          className="uru-shell-tight"
           role="status"
-          style={{
-            marginTop: 10,
-            borderColor: 'var(--mint-hot)',
-            background: 'var(--mint)',
-            fontFamily: 'var(--font-pixel), monospace',
-            fontSize: 12,
-            textTransform: 'uppercase',
-            letterSpacing: '0.08em',
-          }}
+          className="uru-banner" data-tone="success" style={{ marginTop: 10 }}
         >
           {success}
         </div>

@@ -1,0 +1,138 @@
+/* Site shell: header and footer. Mirrors the launchpad's shell.module.css; v2 tokens only. */
+
+/* ---------- header ---------- */
+.header {
+  position: sticky;
+  top: 0;
+  z-index: 80;
+  height: 60px;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 0 20px;
+  /* Solid on purpose: backdrop-filter would make the header the containing block
+     for position:fixed children (menu sheet) and clip them. */
+  background: var(--bg);
+  border-bottom: 1px solid var(--line);
+}
+
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  flex: none;
+  color: var(--fg);
+  text-decoration: none;
+}
+.brandLogo { width: 32px; height: 32px; border-radius: 8px; border: 1px solid var(--line); object-fit: cover; }
+.brandName { font-size: 17px; font-weight: 700; letter-spacing: -0.02em; }
+.brandName b { color: var(--accent); font-weight: 700; }
+.brandTag {
+  display: inline-flex;
+  align-items: center;
+  height: 20px;
+  margin-left: -2px;
+  padding: 0 7px;
+  border-radius: 5px;
+  background: var(--surface-3);
+  color: var(--fg-muted);
+  font-size: 11px;
+  font-weight: 650;
+  letter-spacing: 0.02em;
+}
+
+.nav { display: flex; align-items: center; gap: 2px; }
+.navLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 34px;
+  padding: 0 11px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--fg-muted);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  font-weight: 550;
+  text-decoration: none;
+  cursor: pointer;
+  transition: color 120ms, background 120ms;
+}
+.navLink:hover { color: var(--fg); background: var(--surface-3); }
+.navLink[aria-current="page"] { color: var(--fg); font-weight: 650; }
+
+.right { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 36px;
+  padding: 0 11px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface-1);
+  color: var(--fg);
+  font-family: var(--font-sans);
+  font-size: 13.5px;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 120ms, border-color 120ms;
+}
+.pill:hover { background: var(--surface-3); }
+.pill svg { width: 14px; height: 14px; color: var(--fg-faint); }
+.iconPill { width: 36px; padding: 0; justify-content: center; }
+.iconPill svg { width: 17px; height: 17px; color: var(--fg-muted); }
+
+/* Settings rows inside the menu. */
+.setRow { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 40px; padding: 0 10px; font-size: 13.5px; }
+.setRow span small { display: block; font-size: 12px; color: var(--fg-faint); }
+
+/* ---------- footer ---------- */
+.footer {
+  margin-top: 64px;
+  border-top: 1px solid var(--line);
+  background: var(--surface-1);
+}
+.footerInner {
+  max-width: 1480px;
+  margin: 0 auto;
+  padding: 40px 20px 32px;
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) repeat(2, minmax(0, 1fr));
+  gap: 32px;
+}
+.footerBrand p { margin: 10px 0 0; max-width: 46ch; font-size: 13.5px; line-height: 1.6; color: var(--fg-muted); }
+.footerCol h3 { margin: 0 0 12px; font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--fg-faint); }
+.footerCol ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 8px; }
+.footerCol a { color: var(--fg-muted); font-size: 13.5px; text-decoration: none; }
+.footerCol a:hover { color: var(--fg); }
+.footerBase {
+  max-width: 1480px;
+  margin: 0 auto;
+  padding: 16px 20px 24px;
+  border-top: 1px solid var(--line);
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  font-size: 12.5px;
+  color: var(--fg-faint);
+}
+
+/* ---------- responsive ---------- */
+@media (max-width: 1020px) {
+  .nav { display: none !important; }
+}
+@media (max-width: 760px) {
+  .header { gap: 10px; padding: 0 12px; height: 56px; }
+  .hideSm { display: none !important; }
+  .footerInner { grid-template-columns: 1fr 1fr; padding-top: 28px; }
+  .footerBrand { grid-column: 1 / -1; }
+}
+@media (max-width: 380px) {
+  .brandName, .brandTag { display: none; }
+}
